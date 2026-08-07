@@ -2052,14 +2052,14 @@ function spSignIn(){
   if(!configReady()){ setStatus("Fill in all four fields and Save settings first.","bad"); return; }
   if(!msalApp) initMsal();
   if(!msalApp){ setStatus("MSAL library not loaded (offline?).","bad"); return; }
-  msalApp.loginPopup({scopes:["Sites.ReadWrite.All"]}).then(function(resp){
+  msalApp.loginPopup({scopes:["Sites.ReadWrite.All","Sites.Manage.All"]}).then(function(resp){
     account=resp.account; updateSyncUI(); setStatus("Signed in as "+account.username+".","ok");
   }).catch(function(e){ setStatus("Sign-in failed: "+e.message,"bad"); });
 }
 function getToken(){
-  return msalApp.acquireTokenSilent({scopes:["Sites.ReadWrite.All"],account:account})
+  return msalApp.acquireTokenSilent({scopes:["Sites.ReadWrite.All","Sites.Manage.All"],account:account})
     .then(function(r){ return r.accessToken; })
-    .catch(function(){ return msalApp.acquireTokenPopup({scopes:["Sites.ReadWrite.All"]}).then(function(r){ account=r.account; return r.accessToken; }); });
+    .catch(function(){ return msalApp.acquireTokenPopup({scopes:["Sites.ReadWrite.All","Sites.Manage.All"]}).then(function(r){ account=r.account; return r.accessToken; }); });
 }
 function graph(url,token,method,body){
   return fetch("https://graph.microsoft.com/v1.0"+url,{
