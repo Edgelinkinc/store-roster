@@ -2114,7 +2114,11 @@ function spSave(silent){
 function empHomeStore(e){ return storeById(empPrimary(e))||{}; }
 function choiceVal(v){ return v?v:"none"; }
 function unchoiceVal(v){ return (v==="none"||!v)?"":v; }
-function dISO(v){ return v?((""+v).slice(0,10)+"T00:00:00Z"):null; }
+function dISO(v){ if(!v) return null; v=""+v;
+  if(/^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0,10)+"T00:00:00Z";
+  var m=v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(m){ var mo=parseInt(m[1],10),da=parseInt(m[2],10),yr=parseInt(m[3],10); if(yr<100) yr+=2000; if(!mo||!da) return null; return yr+"-"+(mo<10?"0":"")+mo+"-"+(da<10?"0":"")+da+"T00:00:00Z"; }
+  return null; }
 function empToFields(e){
   var hs=empHomeStore(e), home=empPrimary(e), sl=empStores(e), splits={}, i;
   for(i=0;i<sl.length;i++){ var st=storeById(sl[i]); if(st) splits[st.name]=empHoursAt(e,sl[i]); }
@@ -2148,7 +2152,8 @@ function fieldsToEmp(fd,spId){
   try{ e.availability=f.Availability?JSON.parse(f.Availability):{}; }catch(av){ e.availability={}; }
   _spById[e.id]=spId; return e;
 }
-function chainEach(arr,fn){ var p=Promise.resolve(); arr.forEach(function(x){ p=p.then(function(){ return fn(x); }); }); return p; }
+var _syncFails=0;
+function chainEach(arr,fn){ var p=Promise.resolve(); arr.forEach(function(x){ p=p.then(function(){ return fn(x); }).then(null,function(err){ _syncFails++; try{ console.warn("Sync skipped a record:",err&&err.message); }catch(e){} }); }); return p; }
 function rebuildSnap(){ _snap={}; for(var i=0;i<DATA.employees.length;i++){ var e=DATA.employees[i]; if(e.open) continue; _snap[e.id]=JSON.stringify(filt(empToFields(e),_peopleCols)); } }
 function readAllItems(t,url){ var acc=[]; function go(u){ return graph(u.replace("https://graph.microsoft.com/v1.0",""),t).then(function(r){ acc=acc.concat(r.value||[]); if(r["@odata.nextLink"]) return go(r["@odata.nextLink"]); return acc; }); } return go(url); }
 function pullRosterSilent(){
@@ -2181,19 +2186,20 @@ function pushAllRoster(){
   if(!account){ openSettings(); setStatus("Sign in first.","bad"); return; }
   var live=[]; for(var i=0;i<DATA.employees.length;i++){ if(!DATA.employees[i].open) live.push(DATA.employees[i]); }
   if(!confirm("Publish "+DATA.stores.length+" store(s) and "+live.length+" people into SharePoint? Existing rows update in place; others are added.")) return;
-  setSync("Publishing\u2026");
+  _syncFails=0; setSync("Publishing\u2026");
   getToken().then(function(t){
     return resolveSite(t).then(function(){ return ensureCols(t); }).then(function(){ return pushStores(t); }).then(function(){
       return chainEach(live,function(e){ var fields=filt(empToFields(e),_peopleCols), id=_spById[e.id];
         if(id) return graph("/sites/"+siteId+"/lists/"+listId+"/items/"+id+"/fields",t,"PATCH",fields);
         return graph("/sites/"+siteId+"/lists/"+listId+"/items",t,"POST",{fields:fields}).then(function(it){ _spById[e.id]=it.id; });
       });
-    }).then(function(){ rebuildSnap(); rebuildStoreSnap(); setSyncOK(); flashSync("Published to SharePoint"); });
+    }).then(function(){ rebuildSnap(); rebuildStoreSnap(); setSyncOK(); flashSync(_syncFails?("Published \u00b7 "+_syncFails+" skipped"):"Published to SharePoint"); });
   }).catch(function(e){ setSyncErr(); alert("Publish failed: "+e.message); });
 }
 function schedulePush(){ if(_pushTimer) clearTimeout(_pushTimer); _pushTimer=setTimeout(pushDirty,900); }
 function pushDirty(){
   if(!account){ return; }
+  _syncFails=0;
   getToken().then(function(t){
     return resolveSite(t).then(function(){ return ensureCols(t); }).then(function(){
       var ops=[],present={},dels=[],sops=[],i,e,cur,k,s;
@@ -2209,7 +2215,7 @@ function pushDirty(){
           return graph("/sites/"+siteId+"/lists/"+listId+"/items",t,"POST",{fields:fields}).then(function(it){ _spById[em.id]=it.id; });
         });
       }).then(function(){ return chainEach(dels,function(kk){ return graph("/sites/"+siteId+"/lists/"+listId+"/items/"+_spById[kk],t,"DELETE").then(function(){ delete _spById[kk]; }); }); })
-        .then(function(){ rebuildSnap(); rebuildStoreSnap(); setSyncOK(); flashSync("Synced to SharePoint"); });
+        .then(function(){ rebuildSnap(); rebuildStoreSnap(); if(_syncFails){ setSyncErr(); flashSync(_syncFails+" record(s) failed to sync"); } else { setSyncOK(); flashSync("Synced to SharePoint"); } });
     });
   }).catch(function(e){ setSyncErr(); });
 }
