@@ -2151,6 +2151,18 @@ function fieldsToEmp(fd,spId){
 function chainEach(arr,fn){ var p=Promise.resolve(); arr.forEach(function(x){ p=p.then(function(){ return fn(x); }); }); return p; }
 function rebuildSnap(){ _snap={}; for(var i=0;i<DATA.employees.length;i++){ var e=DATA.employees[i]; if(e.open) continue; _snap[e.id]=JSON.stringify(filt(empToFields(e),_peopleCols)); } }
 function readAllItems(t,url){ var acc=[]; function go(u){ return graph(u.replace("https://graph.microsoft.com/v1.0",""),t).then(function(r){ acc=acc.concat(r.value||[]); if(r["@odata.nextLink"]) return go(r["@odata.nextLink"]); return acc; }); } return go(url); }
+function pullRosterSilent(){
+  if(!account){ return; }
+  setSync("Syncing\u2026");
+  getToken().then(function(t){
+    return resolveSite(t).then(function(){ return pullStores(t); }).then(function(){ return resolveList(t); }).then(function(){
+      return listColumns(t,listId).then(function(m){ _peopleCols=m.writable; return readAllItems(t,"/sites/"+siteId+"/lists/"+listId+"/items?expand=fields&$top=200"); });
+    }).then(function(items){
+      if(items.length){ var emps=[],i; _spById={}; for(i=0;i<items.length;i++){ emps.push(fieldsToEmp(items[i].fields,items[i].id)); } DATA.employees=emps; lsSet(LS_DATA,DATA); }
+      rebuildSnap(); rebuildStoreSnap(); fillSelects(); renderLegend(); render(); setSyncOK();
+    });
+  }).catch(function(e){ setSyncErr(); });
+}
 function pullRoster(){
   if(!account){ openSettings(); setStatus("Sign in first.","bad"); return; }
   setSync("Loading roster\u2026");
@@ -2378,6 +2390,7 @@ function boot(){
   fillSelects(); renderLegend(); render();
   initMsal(); updateSyncUI();
   setView(UI.view);
+  if(CFG && CFG.structured && CFG.auto && account && configReady()){ setTimeout(pullRosterSilent,300); }
 }
 boot();
 </script>
