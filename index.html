@@ -1,0 +1,3626 @@
+<!DOCTYPE html>
+<!-- New Hire Hub v1.4 - build 20260719 -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>New Hire Hub - Edgelink</title>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --magenta: #E20074;
+    --magenta-light: #FBEAF0;
+    --purple: #4A1B5C;
+    --purple-light: #F3E9F6;
+    --green: #3B6D11;
+    --green-light: #EAF3DE;
+    --amber: #854F0B;
+    --amber-light: #FAC775;
+    --red: #A32D2D;
+    --red-light: #FCEBEB;
+    --teal: #0F6E56;
+    --teal-light: #E1F5EE;
+    --gray-border: #E5E1D8;
+    --gray-muted: #8A8780;
+    --gray-text: #2C2C2A;
+    --bg-page: #F7F0E3;
+    --bg-card: #FFFFFF;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg-page);
+    font-family: 'Montserrat', sans-serif;
+    color: var(--gray-text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  @media (min-width: 700px) {
+    #app {
+      max-width: 900px;
+      margin: 20px auto;
+      min-height: calc(100vh - 40px);
+      border-radius: 16px;
+      box-shadow: none;
+      border: 0.5px solid var(--gray-border);
+      overflow: hidden;
+    }
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: #fff;
+    padding: 22px 18px 14px;
+    border-bottom: 2px solid var(--purple);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 1.5px;
+    font-size: 24px;
+    color: var(--purple);
+  }
+  .header .sub {
+    font-size: 11px;
+    color: var(--magenta);
+    font-weight: 600;
+    margin-top: 2px;
+  }
+  .bell {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--magenta);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+    font-size: 16px;
+  }
+
+  /* ===== STATS STRIP ===== */
+  .stats {
+    margin: 16px 16px 0;
+    background: #fff;
+    border-radius: 18px;
+    padding: 14px 8px;
+    border: 0.5px solid var(--purple);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .stat { text-align: center; flex: 1; }
+  .stat .num { font-size: 19px; font-weight: 700; color: var(--purple); }
+  .stat .num.alert { color: var(--magenta); }
+  .stat .label { font-size: 9px; color: var(--gray-muted); margin-top: 2px; letter-spacing: 0.3px; text-transform: uppercase; }
+  .stat-divider { width: 0.5px; height: 30px; background: var(--gray-border); }
+
+  /* ===== HOME ACTIONS ===== */
+  .section-label {
+    font-size: 11px;
+    color: var(--gray-muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin: 0 16px 8px;
+    margin-top: 22px;
+  }
+  .actions { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .action-tile {
+    border-radius: 16px;
+    padding: 15px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    border: none;
+    text-align: left;
+    width: 100%;
+    transition: transform 0.1s;
+  }
+  .action-tile:active { transform: scale(0.98); }
+  .action-tile.primary { background: var(--magenta); }
+  .action-tile.secondary { background: var(--purple); }
+  .action-tile.tertiary { background: #fff; border: 1.5px solid var(--purple); }
+  .action-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 18px;
+  }
+  .action-tile.primary .action-icon { background: rgba(255,255,255,0.22); color: #fff; }
+  .action-tile.secondary .action-icon { background: rgba(255,255,255,0.18); color: #fff; }
+  .action-tile.tertiary .action-icon { background: var(--purple-light); color: var(--purple); }
+  .action-text { flex: 1; }
+  .action-title { font-size: 13px; font-weight: 600; }
+  .action-tile.primary .action-title, .action-tile.secondary .action-title { color: #fff; }
+  .action-tile.tertiary .action-title { color: var(--purple); }
+  .action-desc { font-size: 10px; margin-top: 1px; }
+  .action-tile.primary .action-desc { color: #FBEAF0; }
+  .action-tile.secondary .action-desc { color: #D9C5E0; }
+  .action-tile.tertiary .action-desc { color: var(--gray-muted); }
+  .action-chevron { font-size: 15px; }
+  .action-tile.primary .action-chevron, .action-tile.secondary .action-chevron { color: #fff; }
+  .action-tile.tertiary .action-chevron { color: var(--purple); }
+
+  /* ===== BOTTOM NAV ===== */
+  .bottom-nav {
+    padding: 10px 16px;
+    border-top: 0.5px solid var(--gray-border);
+    display: flex;
+    justify-content: space-around;
+    background: #fff;
+    margin-top: auto;
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    cursor: pointer; border: none; background: none; padding: 4px 8px;
+  }
+  .nav-item .icon { font-size: 19px; color: var(--gray-muted); }
+  .nav-item .label { font-size: 9px; color: var(--gray-muted); }
+  .nav-item.active .icon, .nav-item.active .label { color: var(--magenta); font-weight: 600; }
+
+  /* ===== VIEW WRAPPER ===== */
+  .view { display: none; flex-direction: column; flex: 1; }
+  .view.active { display: flex; }
+
+  /* ===== CANDIDATES LIST ===== */
+  .candidates-header {
+    background: #fff;
+    padding: 18px 16px 0;
+    border-bottom: 0.5px solid var(--gray-border);
+  }
+  .candidates-header h2 { font-size: 18px; font-weight: 600; color: var(--purple); margin-bottom: 12px; }
+  .filter-pills { display: flex; gap: 6px; padding-bottom: 12px; flex-wrap: wrap; }
+  .pill {
+    font-size: 11px; padding: 6px 13px; border-radius: 14px; font-weight: 600;
+    cursor: pointer; border: 1.5px solid transparent; background: var(--gray-border); color: var(--gray-text);
+  }
+  .pill.active.all { background: var(--magenta); color: #fff; }
+  .pill.active.overdue { background: var(--red-light); color: var(--red); border-color: var(--red); }
+  .pill.active.ready { background: var(--green-light); color: var(--green); border-color: var(--green); }
+
+  .candidates-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    overflow-y: auto;
+  }
+
+  .candidate-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 14px;
+    border: 0.5px solid var(--gray-border);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .candidate-card .stripe {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  }
+  .candidate-top { display: flex; align-items: center; gap: 10px; padding-left: 6px; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+  }
+  .candidate-info { flex: 1; min-width: 0; }
+  .candidate-name { font-size: 14px; font-weight: 600; color: var(--gray-text); }
+  .candidate-meta { font-size: 11px; color: var(--gray-muted); margin-top: 1px; }
+  .status-chip { font-size: 10px; padding: 4px 9px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+  .progress-row { display: flex; gap: 4px; margin-top: 11px; padding-left: 48px; }
+  .progress-seg { flex: 1; height: 6px; border-radius: 3px; background: #EEEEEE; }
+  .next-step { font-size: 10px; color: var(--gray-muted); margin-top: 7px; padding-left: 48px; }
+  .card-info-strip {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 9px; padding-left: 48px;
+    font-size: 10px; color: var(--gray-muted);
+  }
+  .card-info-strip span { background: var(--gray-border); padding: 2px 8px; border-radius: 8px; }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--gray-muted); font-size: 13px; }
+
+  .loading { text-align: center; padding: 40px 20px; color: var(--gray-muted); font-size: 13px; }
+
+  /* ===== ADD CANDIDATE FORM ===== */
+  .form-body { padding: 18px 16px 24px; display: flex; flex-direction: column; gap: 16px; flex: 1; overflow-y: auto; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label { font-size: 12px; font-weight: 600; color: var(--gray-text); }
+  .form-input {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 15px;
+    padding: 12px 14px;
+    border: 1.5px solid var(--gray-border);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--gray-text);
+    width: 100%;
+  }
+  .form-input:focus { outline: none; border-color: var(--purple); }
+  textarea.form-input { resize: vertical; font-family: 'Montserrat', sans-serif; }
+  .form-submit {
+    background: var(--magenta);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    margin-top: 6px;
+  }
+  .form-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* Availability grid */
+  .avail-row { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 8px; }
+  .avail-day { font-size: 12px; font-weight: 600; color: var(--gray-text); }
+  .avail-shifts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .avail-shift-btn {
+    font-size: 11px; padding: 4px 10px; border-radius: 8px;
+    border: 1.5px solid var(--gray-border); background: #fff;
+    color: var(--gray-text); cursor: pointer; font-family: 'Montserrat', sans-serif;
+  }
+  .avail-shift-btn.selected { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .avail-off-btn {
+    font-size: 11px; padding: 4px 10px; border-radius: 8px;
+    border: 1.5px solid var(--gray-border); background: #fff;
+    color: var(--gray-muted); cursor: pointer; font-family: 'Montserrat', sans-serif;
+  }
+  .avail-off-btn.selected { background: var(--gray-border); color: var(--gray-text); border-color: var(--gray-muted); }
+  .form-success {
+    display: none;
+    background: var(--green-light); color: var(--green);
+    padding: 12px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; text-align: center;
+  }
+  .form-error {
+    display: none;
+    background: var(--red-light); color: var(--red);
+    padding: 12px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; text-align: center;
+  }
+
+  .roster-banner {
+    background: #FAEEDA; border: 1px solid #FAC775; border-radius: 10px;
+    padding: 11px 12px; margin-bottom: 14px;
+  }
+  .roster-banner.loading { background: #FAF7F1; border-color: var(--gray-border); }
+  .roster-banner-title { font-size: 12px; font-weight: 700; color: #854F0B; }
+  .roster-banner-body { font-size: 11.5px; color: #7A5B22; margin-top: 4px; line-height: 1.5; }
+  .roster-banner-actions { display: flex; gap: 8px; margin-top: 9px; }
+  .roster-retry, .roster-detail-toggle {
+    font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600;
+    padding: 5px 11px; border-radius: 7px; cursor: pointer;
+  }
+  .roster-retry { background: #854F0B; color: #fff; border: none; }
+  .roster-detail-toggle { background: transparent; color: #854F0B; border: 1px solid #E0B25E; }
+  .roster-banner-detail {
+    margin-top: 9px; font-family: monospace; font-size: 10.5px; color: #5F4A22;
+    background: #fff; border-radius: 7px; padding: 9px; white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  #signed-in-as {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 7px 14px; background: #FAF7F1;
+    border-bottom: 0.5px solid var(--gray-border); flex-shrink: 0;
+  }
+  .signed-in-text {
+    font-size: 11px; color: var(--gray-muted); overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+  }
+  .signed-in-text.unknown { color: #A32D2D; font-weight: 600; }
+  .switch-account-btn {
+    font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600;
+    color: var(--purple); background: none; border: none; cursor: pointer;
+    padding: 2px 4px; white-space: nowrap;
+  }
+
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .refresh-wrap { display: flex; align-items: center; gap: 8px; }
+  .refresh-stamp { font-size: 10.5px; color: var(--gray-muted); white-space: nowrap; }
+  .refresh-btn {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    border: 1px solid var(--gray-border); background: #fff; color: var(--purple);
+    font-size: 16px; line-height: 1; cursor: pointer; font-family: inherit;
+  }
+  .refresh-btn:disabled { opacity: 0.5; cursor: default; }
+  .refresh-btn.spinning { animation: refresh-spin 0.8s linear infinite; }
+  @keyframes refresh-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* ===== START CALENDAR ===== */
+  .cal-monthbar {
+    display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+    background: #fff; border-bottom: 0.5px solid var(--gray-border); flex-shrink: 0;
+  }
+  .cal-nav-btn {
+    width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--gray-border);
+    background: #fff; color: var(--purple); font-size: 17px; line-height: 1;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .cal-month-select {
+    flex: 1; min-width: 0; font-family: 'Montserrat', sans-serif;
+    font-size: 12.5px; font-weight: 600; color: var(--purple);
+    padding: 7px 8px; border-radius: 8px; border: 1px solid var(--gray-border);
+    background: #fff; cursor: pointer; text-align: center;
+  }
+  #cal-year-select { flex: 0 0 78px; }
+  .cal-filterbar {
+    display: flex; align-items: center; gap: 8px; padding: 0 14px 12px;
+    background: #fff; border-bottom: 0.5px solid var(--gray-border); flex-shrink: 0;
+  }
+  .cal-filter-select {
+    flex: 1; min-width: 0; font-family: 'Montserrat', sans-serif;
+    font-size: 12px; font-weight: 600; color: var(--purple);
+    padding: 8px 10px; border-radius: 9px; border: 1px solid var(--gray-border);
+    background: #fff; cursor: pointer;
+  }
+  .cal-filter-select.filtered {
+    border-color: var(--magenta); background: var(--magenta-light); color: #993556;
+  }
+  .cal-readonly-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: var(--gray-muted);
+    background: #F1EEE7; border-radius: 999px; padding: 4px 9px; white-space: nowrap;
+  }
+  .cal-today-btn {
+    font-family: 'Montserrat', sans-serif; font-size: 11px; font-weight: 600;
+    padding: 7px 12px; border-radius: 8px; border: 1px solid var(--gray-border);
+    background: #fff; color: var(--purple); cursor: pointer; flex-shrink: 0;
+  }
+  .cal-scroll { flex: 1; overflow-y: auto; background: var(--bg-page); padding: 12px; }
+  .cal-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px;
+  }
+  .cal-weekdays div {
+    text-align: center; font-size: 10.5px; font-weight: 700;
+    color: var(--gray-muted); letter-spacing: 0.4px;
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal-day {
+    aspect-ratio: 1 / 1; background: #fff; border: 0.5px solid var(--gray-border);
+    border-radius: 9px; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px; cursor: default; padding: 2px;
+  }
+  .cal-day.blank { background: transparent; border-color: transparent; }
+  .cal-day-num { font-size: 12px; font-weight: 600; color: var(--gray-text); line-height: 1; }
+  .cal-day.past .cal-day-num { color: #C2BFB6; }
+  .cal-day.today { border: 2px solid var(--magenta); }
+  .cal-day.has-starts { background: var(--purple-light); border-color: #D9C5E0; cursor: pointer; }
+  .cal-day.selected { background: var(--purple); border-color: var(--purple); }
+  .cal-day.selected .cal-day-num { color: #fff; }
+  .cal-day-count {
+    font-size: 9.5px; font-weight: 700; color: var(--purple);
+    background: #fff; border-radius: 999px; padding: 0 5px; line-height: 14px; min-width: 14px;
+  }
+  .cal-day.selected .cal-day-count { background: #fff; color: var(--purple); }
+  .cal-day-panel-head {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 1.2px;
+    font-size: 15px; color: var(--purple); margin: 16px 0 8px;
+  }
+  .cal-person {
+    display: flex; align-items: center; gap: 11px; background: #fff;
+    border: 0.5px solid var(--gray-border); border-radius: 12px;
+    padding: 11px 12px; margin-bottom: 7px;
+  }
+  .cal-person-info { flex: 1; min-width: 0; }
+  .cal-person-name { font-size: 13.5px; font-weight: 600; color: var(--gray-text); }
+  .cal-person-meta {
+    font-size: 11px; color: var(--gray-muted); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cal-daycount-note { font-size: 11.5px; color: var(--gray-muted); margin-bottom: 10px; }
+
+  /* ===== ADMIN ===== */
+  .admin-tabs {
+    display: flex; gap: 6px; padding: 12px 14px; background: #fff;
+    border-bottom: 0.5px solid var(--gray-border); overflow-x: auto;
+  }
+  .admin-tab {
+    font-size: 12px; font-weight: 600; color: var(--gray-muted);
+    padding: 7px 14px; cursor: pointer; border-radius: 999px;
+    white-space: nowrap; transition: background 0.12s, color 0.12s;
+  }
+  .admin-tab:hover { background: var(--purple-light); color: var(--purple); }
+  .admin-tab.active { color: #fff; background: var(--magenta); }
+
+  .admin-panel { display: none; flex: 1; overflow-y: auto; }
+  .admin-panel.active { display: flex; flex-direction: column; }
+
+  .admin-toolbar {
+    display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px;
+    background: #fff; border-bottom: 0.5px solid var(--gray-border);
+  }
+  .admin-search {
+    flex: 1; min-width: 150px; font-family: 'Montserrat', sans-serif;
+    font-size: 12px; padding: 9px 11px; border-radius: 9px;
+    border: 1px solid var(--gray-border); background: #fff; color: var(--gray-text);
+  }
+  .admin-search::placeholder { color: #B4B2A9; }
+  .admin-filter-select {
+    font-family: 'Montserrat', sans-serif; font-size: 12px; font-weight: 600;
+    padding: 9px 11px; border-radius: 9px; border: 1px solid var(--gray-border);
+    background: #fff; color: var(--purple); cursor: pointer; max-width: 190px;
+  }
+  .admin-filter-select.filtered {
+    border-color: var(--magenta); background: var(--magenta-light); color: #993556;
+  }
+  .admin-filter-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 13px; background: var(--magenta-light);
+    border: 0.5px solid #F4C0D1; border-radius: 10px; margin-bottom: 12px;
+  }
+  .admin-filter-count { font-size: 11.5px; color: #993556; }
+  .admin-clear-filters {
+    font-size: 11.5px; font-weight: 600; color: #993556; cursor: pointer;
+    background: none; border: none; font-family: 'Montserrat', sans-serif;
+  }
+
+  .admin-list-wrap {
+    flex: 1; overflow-y: auto; padding: 14px; background: var(--bg-page);
+  }
+
+  .mkt-group { margin-bottom: 12px; }
+  .mkt-head {
+    display: flex; align-items: center; gap: 9px; padding: 9px 11px;
+    background: #fff; border: 0.5px solid var(--gray-border);
+    border-radius: 10px; cursor: pointer; margin-bottom: 8px;
+  }
+  .mkt-chev {
+    font-size: 15px; color: var(--purple); flex-shrink: 0;
+    transition: transform 0.15s; transform: rotate(90deg);
+  }
+  .mkt-group.collapsed .mkt-chev { transform: rotate(0deg); }
+  .mkt-group.collapsed .mkt-body { display: none; }
+  .view-stage-head {
+    display: flex; align-items: center; gap: 9px;
+    margin: 14px 0 2px; padding: 0 2px;
+  }
+  .view-stage-head:first-child { margin-top: 0; }
+  .view-stage-name {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 1.4px;
+    font-size: 14px; color: var(--purple);
+  }
+  .stage-new {
+    flex-shrink: 0; background: var(--magenta); color: #fff;
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.6px;
+    padding: 3px 7px; border-radius: 999px; line-height: 1;
+  }
+  .stage-num {
+    width: 19px; height: 19px; border-radius: 50%; flex-shrink: 0;
+    background: var(--purple); color: #fff; font-size: 10.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mkt-name {
+    font-family: 'Bebas Neue', sans-serif; letter-spacing: 1.4px;
+    font-size: 15px; color: var(--purple);
+  }
+  .mkt-pill {
+    font-size: 11px; font-weight: 600; color: var(--purple);
+    background: var(--purple-light); padding: 2px 8px; border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  .admin-candidate-card {
+    background: #fff; border-radius: 12px;
+    border: 0.5px solid var(--gray-border); margin-bottom: 8px;
+    overflow: hidden;
+  }
+  .admin-candidate-summary {
+    display: flex; align-items: center; gap: 11px;
+    padding: 12px 13px; cursor: pointer;
+  }
+  .admin-avatar {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+  }
+  .admin-summary-info { flex: 1; min-width: 0; }
+  .admin-summary-name {
+    font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--gray-text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .admin-summary-meta {
+    font-size: 11.5px; color: var(--gray-muted); margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .admin-count-chip {
+    font-size: 11px; font-weight: 700; padding: 3px 9px;
+    border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+  }
+  .admin-chevron {
+    font-size: 17px; color: #B4B2A9; transition: transform 0.15s; flex-shrink: 0;
+  }
+  .admin-candidate-card.expanded .admin-chevron { transform: rotate(90deg); }
+  .admin-mini-progress { display: flex; gap: 3px; padding: 0 13px 12px; }
+  .admin-mini-seg { flex: 1; height: 5px; border-radius: 3px; background: #EDE9E0; }
+  .admin-candidate-detail {
+    display: none; padding: 13px; border-top: 0.5px solid var(--gray-border);
+  }
+  .admin-candidate-card.expanded .admin-candidate-detail { display: block; }
+  .admin-section-label {
+    font-size: 11px; font-weight: 700; color: var(--gray-muted);
+    letter-spacing: 0.6px; margin-bottom: 7px;
+  }
+  .admin-order-info {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 11px 14px; margin-bottom: 16px;
+  }
+  .admin-order-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .admin-order-field label {
+    font-size: 11px; font-weight: 700; color: var(--gray-muted); letter-spacing: 0.6px;
+  }
+  .admin-order-field input, .admin-order-field select {
+    font-family: 'Montserrat', sans-serif; font-size: 12.5px; width: 100%;
+    padding: 4px 0 5px; border: none; border-bottom: 1px solid var(--gray-border);
+    border-radius: 0; background: transparent; color: var(--gray-text);
+  }
+  .admin-order-field input:focus, .admin-order-field select:focus {
+    outline: none; border-bottom-color: var(--magenta);
+  }
+  .admin-task-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 7px 0; border-bottom: 0.5px solid #EDE9E0;
+  }
+  .admin-task-label {
+    font-size: 12.5px; color: var(--gray-text); flex: 1;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .admin-task-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .admin-task-select {
+    font-family: 'Montserrat', sans-serif; font-size: 11.5px; font-weight: 600;
+    padding: 4px 9px; border-radius: 7px; border: 1px solid transparent;
+    cursor: pointer; appearance: none; -webkit-appearance: none; text-align: center;
+  }
+  .admin-note-row { display: flex; gap: 8px; margin-top: 12px; }
+  .admin-note-input {
+    flex: 1; font-family: 'Montserrat', sans-serif; font-size: 12px;
+    padding: 9px 11px; border: 1px solid var(--gray-border); border-radius: 9px;
+  }
+  .admin-note-btn {
+    background: var(--magenta); color: #fff; border: none; border-radius: 9px;
+    padding: 9px 15px; font-size: 12px; font-weight: 600; cursor: pointer;
+    font-family: 'Montserrat', sans-serif; white-space: nowrap;
+  }
+  .admin-note-log {
+    background: #FAF7F1; border-radius: 9px; padding: 10px 11px; margin-top: 8px;
+    font-size: 11.5px; color: #5F5E5A; line-height: 1.65;
+    max-height: 130px; overflow-y: auto; white-space: pre-wrap;
+  }
+  .brinks-send-btn {
+    margin-top: 12px; width: 100%; padding: 10px; border-radius: 9px;
+    border: 1px solid #B5D4F4; background: #E6F1FB; color: #185FA5;
+    font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Montserrat', sans-serif;
+  }
+  .brinks-send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .brinks-blocked-note {
+    font-size: 11px; color: #854F0B; background: #FAEEDA;
+    border-radius: 8px; padding: 8px 10px; margin-top: 6px; line-height: 1.5;
+  }
+
+  .backsheet-row {
+    background: #fff; border-radius: 16px; padding: 14px;
+    border: 0.5px solid var(--gray-border); margin-bottom: 10px;
+  }
+  .backsheet-row .task-title { font-size: 13px; font-weight: 700; color: var(--purple); margin-bottom: 8px; }
+  .backsheet-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+  .backsheet-field label { font-size: 11px; color: var(--gray-muted); font-weight: 600; }
+  .backsheet-field input {
+    font-family: 'Montserrat', sans-serif; font-size: 12px; padding: 8px 10px;
+    border-radius: 8px; border: 1.5px solid var(--gray-border);
+  }
+  .backsheet-save-note { font-size: 10px; color: var(--gray-muted); margin-top: 4px; }
+
+  /* ===== SIGN-IN SCREEN ===== */
+  #signin-screen {
+    max-width: 480px;
+    margin: 0 auto;
+    background: #fff;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<div id="signin-screen">
+  <div style="background:#4A1B5C; padding:48px 32px 56px; position:relative; overflow:hidden;">
+    <div style="position:absolute; top:-50px; right:-50px; width:200px; height:200px; border-radius:50%; background:#E20074; opacity:0.15;"></div>
+    <div style="position:absolute; bottom:-70px; left:-40px; width:160px; height:160px; border-radius:50%; background:#E20074; opacity:0.10;"></div>
+    <div style="position:absolute; top:30px; right:70px; width:50px; height:50px; border-radius:50%; background:#fff; opacity:0.05;"></div>
+    <div style="position:absolute; bottom:30px; right:40px; width:24px; height:24px; transform:rotate(45deg); background:#E20074; opacity:0.25;"></div>
+    <div style="position:absolute; top:70px; left:24px; width:14px; height:14px; transform:rotate(45deg); background:#fff; opacity:0.10;"></div>
+    <div style="position:absolute; top:110px; right:24px; width:8px; height:8px; border-radius:50%; background:#E20074; opacity:0.4;"></div>
+    <div style="position:relative; z-index:1;">
+      <div style="display:inline-block; background:#E20074; border-radius:8px; padding:5px 12px; margin-bottom:14px;">
+        <span style="font-size:10px; font-weight:700; color:#fff; letter-spacing:1.5px; font-family:'Montserrat',sans-serif;">EDGELINK HR &amp; RECRUITING</span>
+      </div>
+      <h1 style="font-family:'Bebas Neue',sans-serif; font-size:38px; letter-spacing:2px; color:#fff; margin:0 0 10px; line-height:1.05;">NEW HIRE HUB</h1>
+      <p style="font-size:13px; color:#E20074; font-weight:700; margin:0 0 6px; letter-spacing:0.3px; font-family:'Montserrat',sans-serif;">From Magenta Clear to Day One —</p>
+      <p style="font-size:13px; color:#D9C5E0; margin:0; line-height:1.5; font-family:'Montserrat',sans-serif;">your new hire's journey starts here.</p>
+    </div>
+  </div>
+
+  <div style="background:#FBEAF0; padding:18px 32px; border-bottom:2px solid #E20074;">
+    <p style="font-size:13px; font-weight:600; color:#4A1B5C; margin:0 0 3px; font-family:'Montserrat',sans-serif;">👋 Welcome, EdgeLink team!</p>
+    <p style="font-size:11px; color:#993556; margin:0; font-family:'Montserrat',sans-serif;">A message from EdgeLink Human Resources &amp; Recruiting</p>
+  </div>
+
+  <div style="padding:24px 32px; max-width:480px; margin:0 auto;">
+    <p style="font-size:13px; color:#2C2C2A; line-height:1.75; margin:0 0 22px; font-family:'Montserrat',sans-serif;">New Hire Hub is your one-stop portal for submitting new candidates and tracking their onboarding progress — every step of the way, from their Magenta Clear email to their first day on the floor. HR manages progress behind the scenes so you always have a clear picture of where your new hire stands.</p>
+
+    <p style="font-size:10px; font-weight:700; color:#4A1B5C; letter-spacing:1px; margin:0 0 14px; font-family:'Montserrat',sans-serif;">THE NEW HIRE JOURNEY</p>
+
+    <div style="display:flex; flex-direction:column; gap:0; margin-bottom:24px;">
+
+      <div style="display:flex; gap:14px; align-items:stretch;">
+        <div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:28px;">
+          <div style="width:28px; height:28px; border-radius:50%; background:#E20074; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span style="font-size:12px; font-weight:700; color:#fff; font-family:'Montserrat',sans-serif;">1</span>
+          </div>
+          <div style="width:2px; flex:1; background:#F0D0DA; margin:4px 0;"></div>
+        </div>
+        <div style="padding-bottom:18px;">
+          <p style="font-size:13px; font-weight:600; color:#2C2C2A; margin:0 0 3px; font-family:'Montserrat',sans-serif;">Submit the candidate</p>
+          <p style="font-size:12px; color:#8A8780; margin:0; line-height:1.6; font-family:'Montserrat',sans-serif;">Fill out the Add Candidate form with their info, store, position, and availability. A welcome email goes straight to your new hire.</p>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:14px; align-items:stretch;">
+        <div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:28px;">
+          <div style="width:28px; height:28px; border-radius:50%; background:#4A1B5C; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span style="font-size:12px; font-weight:700; color:#fff; font-family:'Montserrat',sans-serif;">2</span>
+          </div>
+          <div style="width:2px; flex:1; background:#D9C5E0; margin:4px 0;"></div>
+        </div>
+        <div style="padding-bottom:18px;">
+          <p style="font-size:13px; font-weight:600; color:#2C2C2A; margin:0 0 3px; font-family:'Montserrat',sans-serif;">HR handles onboarding</p>
+          <p style="font-size:12px; color:#8A8780; margin:0; line-height:1.6; font-family:'Montserrat',sans-serif;">Human Resources tracks every task — ID verification, offer letter, NTID, paperwork, Brinks credentials — and keeps progress updated in real time.</p>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:14px; align-items:stretch;">
+        <div style="display:flex; flex-direction:column; align-items:center; flex-shrink:0; width:28px;">
+          <div style="width:28px; height:28px; border-radius:50%; background:#E20074; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <span style="font-size:12px; font-weight:700; color:#fff; font-family:'Montserrat',sans-serif;">3</span>
+          </div>
+          <div style="width:2px; flex:1; background:#F0D0DA; margin:4px 0;"></div>
+        </div>
+        <div style="padding-bottom:18px;">
+          <p style="font-size:13px; font-weight:600; color:#2C2C2A; margin:0 0 3px; font-family:'Montserrat',sans-serif;">Track progress anytime</p>
+          <p style="font-size:12px; color:#8A8780; margin:0; line-height:1.6; font-family:'Montserrat',sans-serif;">Check the Candidates tab for live status on every step. You'll get email notifications when tasks complete or need your attention.</p>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:14px; align-items:flex-start;">
+        <div style="width:28px; height:28px; border-radius:50%; background:#4A1B5C; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <span style="font-size:12px; font-weight:700; color:#fff; font-family:'Montserrat',sans-serif;">4</span>
+        </div>
+        <div>
+          <p style="font-size:13px; font-weight:600; color:#2C2C2A; margin:0 0 3px; font-family:'Montserrat',sans-serif;">Day One — they're ready!</p>
+          <p style="font-size:12px; color:#8A8780; margin:0; line-height:1.6; font-family:'Montserrat',sans-serif;">Once all steps clear, your new hire is officially ready to start their EdgeLink journey. You'll receive a final confirmation with everything you need.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="background:#F3E9F6; border-radius:12px; padding:14px 16px; margin-bottom:22px; border-left:3px solid #4A1B5C;">
+      <p style="font-size:12px; color:#4A1B5C; margin:0; line-height:1.6; font-family:'Montserrat',sans-serif;"><strong>Sign in with your Edgelink Microsoft 365 account</strong> — the same email and password you use for Teams, Outlook, and SharePoint.</p>
+    </div>
+
+    <button id="signin-btn" onclick="signIn()" style="width:100%; background:#E20074; color:#fff; border:none; border-radius:12px; padding:16px; font-size:15px; font-weight:700; cursor:pointer; font-family:'Montserrat',sans-serif; letter-spacing:0.3px;">Sign in to get started</button>
+    <div id="signin-error" style="color:#A32D2D; font-size:12px; margin-top:14px; display:none; text-align:center; font-family:'Montserrat',sans-serif;">Sign-in failed. Check your connection and try again.</div>
+    <p style="font-size:11px; color:#B4B2A9; text-align:center; margin:14px 0 0; font-family:'Montserrat',sans-serif;">Questions? Contact HR at hr@edgelinkinc.com</p>
+  </div>
+</div>
+
+<div id="app" style="display:none;">
+
+  <div id="signed-in-as" style="display:none;"></div>
+
+  <!-- ================= HOME VIEW ================= -->
+  <div class="view active" id="view-home">
+    <div class="header">
+      <div>
+        <h1>NEW HIRE HUB</h1>
+        <div class="sub">Edgelink onboarding</div>
+      </div>
+      <div class="bell">&#128276;</div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="num" id="stat-active">-</div><div class="label">In progress</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><div class="num alert" id="stat-overdue">-</div><div class="label">Overdue</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><div class="num" id="stat-ready">-</div><div class="label">Day one ready</div></div>
+    </div>
+
+    <div class="section-label">Quick actions</div>
+    <div class="actions">
+      <button class="action-tile primary" onclick="goToView('add')">
+        <div class="action-icon">&#43;</div>
+        <div class="action-text">
+          <div class="action-title">Add candidate</div>
+          <div class="action-desc">Submit a new hire</div>
+        </div>
+        <div class="action-chevron">&#8250;</div>
+      </button>
+      <button class="action-tile secondary" onclick="goToView('candidates')">
+        <div class="action-icon">&#9776;</div>
+        <div class="action-text">
+          <div class="action-title">View candidates</div>
+          <div class="action-desc">Track onboarding progress</div>
+        </div>
+        <div class="action-chevron">&#8250;</div>
+      </button>
+      <button class="action-tile secondary" onclick="goToView('calendar')">
+        <div class="action-icon">&#128197;</div>
+        <div class="action-text">
+          <div class="action-title">Start calendar</div>
+          <div class="action-desc">See upcoming start dates</div>
+        </div>
+        <div class="action-chevron">&#8250;</div>
+      </button>
+      <button class="action-tile tertiary" onclick="goToView('admin')">
+        <div class="action-icon">&#128274;</div>
+        <div class="action-text">
+          <div class="action-title">Admin</div>
+          <div class="action-desc">PIN required</div>
+        </div>
+        <div class="action-chevron">&#8250;</div>
+      </button>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" data-nav="home" onclick="goToView('home')"><span class="icon">&#8962;</span><span class="label">Home</span></button>
+      <button class="nav-item active" data-nav="candidates" onclick="goToView('candidates')"><span class="icon">&#128101;</span><span class="label">Candidates</span></button>
+      <button class="nav-item" data-nav="calendar" onclick="goToView('calendar')"><span class="icon">&#128197;</span><span class="label">Calendar</span></button>
+      <button class="nav-item" data-nav="training" onclick="goToView('training')"><span class="icon">&#127891;</span><span class="label">Training</span></button>
+      <button class="nav-item" data-nav="admin" onclick="goToView('admin')"><span class="icon">&#9881;</span><span class="label">Admin</span></button>
+    </div>
+  </div>
+
+  <!-- ================= ADD CANDIDATE SUCCESS VIEW ================= -->
+  <div class="view" id="view-add-success">
+    <div class="header">
+      <div><h1>NEW HIRE HUB</h1><div class="sub">Edgelink onboarding</div></div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center;">
+      <div style="width:64px; height:64px; border-radius:50%; background:var(--purple-light); display:flex; align-items:center; justify-content:center; margin-bottom:20px;">
+        <span style="font-size:32px;">✓</span>
+      </div>
+      <p style="font-family:'Bebas Neue', sans-serif; font-size:22px; color:var(--purple); letter-spacing:1px; margin-bottom:6px;">Candidate submitted!</p>
+      <p style="font-size:13px; color:var(--gray-muted); margin-bottom:28px;">The following has been added to the onboarding tracker.</p>
+
+      <div style="background:#fff; border-radius:16px; border:0.5px solid var(--gray-border); padding:20px; width:100%; max-width:340px; text-align:left; margin-bottom:28px;">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <div style="font-size:10px; color:var(--gray-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">Candidate</div>
+            <div style="font-size:15px; font-weight:600; color:var(--purple);" id="success-name">—</div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <div style="font-size:10px; color:var(--gray-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">Store</div>
+              <div style="font-size:13px; font-weight:500; color:var(--gray-text);" id="success-store">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px; color:var(--gray-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">Position</div>
+              <div style="font-size:13px; font-weight:500; color:var(--gray-text);" id="success-position">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px; color:var(--gray-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">Coach</div>
+              <div style="font-size:13px; font-weight:500; color:var(--gray-text);" id="success-coach">—</div>
+            </div>
+            <div>
+              <div style="font-size:10px; color:var(--gray-muted); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:2px;">Manager</div>
+              <div style="font-size:13px; font-weight:500; color:var(--gray-text);" id="success-manager">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px; width:100%; max-width:340px;">
+        <button class="form-submit" onclick="goToView('add'); resetAddForm();">Add another candidate</button>
+        <button style="background:#fff; border:1.5px solid var(--purple); color:var(--purple); border-radius:12px; padding:14px; font-size:14px; font-weight:600; cursor:pointer; font-family:'Montserrat',sans-serif;" onclick="goToView('home')">Go home</button>
+      </div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" data-nav="home" onclick="goToView('home')"><span class="icon">&#8962;</span><span class="label">Home</span></button>
+      <button class="nav-item active" data-nav="candidates" onclick="goToView('candidates')"><span class="icon">&#128101;</span><span class="label">Candidates</span></button>
+      <button class="nav-item" data-nav="calendar" onclick="goToView('calendar')"><span class="icon">&#128197;</span><span class="label">Calendar</span></button>
+      <button class="nav-item" data-nav="training" onclick="goToView('training')"><span class="icon">&#127891;</span><span class="label">Training</span></button>
+      <button class="nav-item" data-nav="admin" onclick="goToView('admin')"><span class="icon">&#9881;</span><span class="label">Admin</span></button>
+    </div>
+  </div>
+  <div class="view" id="view-training">
+    <div class="header">
+      <div><h1>TRAINING WATCH</h1><div class="sub">Coming soon</div></div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px; text-align:center;">
+      <div style="font-size:48px; margin-bottom:16px;">🚧</div>
+      <p style="font-size:16px; font-weight:700; color:var(--purple); margin-bottom:8px;">Under Construction</p>
+      <p style="font-size:13px; color:var(--gray-muted); max-width:260px;">The Training Watch tab will house 90-day evaluations for candidates who have started. Coming in a future phase.</p>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item active" data-nav="home" onclick="goToView('home')"><span class="icon">&#8962;</span><span class="label">Home</span></button>
+      <button class="nav-item" data-nav="candidates" onclick="goToView('candidates')"><span class="icon">&#128101;</span><span class="label">Candidates</span></button>
+      <button class="nav-item" data-nav="calendar" onclick="goToView('calendar')"><span class="icon">&#128197;</span><span class="label">Calendar</span></button>
+      <button class="nav-item" data-nav="training" onclick="goToView('training')"><span class="icon">&#127891;</span><span class="label">Training</span></button>
+      <button class="nav-item" data-nav="admin" onclick="goToView('admin')"><span class="icon">&#9881;</span><span class="label">Admin</span></button>
+    </div>
+  </div>
+
+  <!-- ================= CANDIDATES VIEW ================= -->
+  <div class="view" id="view-candidates">
+    <div class="candidates-header">
+      <div class="header-row">
+        <h2>Candidates</h2>
+        <div class="refresh-wrap">
+          <span class="refresh-stamp"></span>
+          <button class="refresh-btn" onclick="refreshCandidates()" title="Refresh">&#8635;</button>
+        </div>
+      </div>
+      <div class="filter-pills">
+        <div class="pill active all" data-filter="all" onclick="setFilter('all')">All <span id="count-all">0</span></div>
+        <div class="pill" data-filter="overdue" onclick="setFilter('overdue')">Overdue <span id="count-overdue">0</span></div>
+        <div class="pill" data-filter="ready" onclick="setFilter('ready')">Ready <span id="count-ready">0</span></div>
+      </div>
+    </div>
+    <div class="candidates-list" id="candidates-list">
+      <div class="loading">Loading candidates...</div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-item" data-nav="home" onclick="goToView('home')"><span class="icon">&#8962;</span><span class="label">Home</span></button>
+      <button class="nav-item active" data-nav="candidates" onclick="goToView('candidates')"><span class="icon">&#128101;</span><span class="label">Candidates</span></button>
+      <button class="nav-item" data-nav="calendar" onclick="goToView('calendar')"><span class="icon">&#128197;</span><span class="label">Calendar</span></button>
+      <button class="nav-item" data-nav="training" onclick="goToView('training')"><span class="icon">&#127891;</span><span class="label">Training</span></button>
+      <button class="nav-item" data-nav="admin" onclick="goToView('admin')"><span class="icon">&#9881;</span><span class="label">Admin</span></button>
+    </div>
+  </div>
+
+
+  <!-- ================= CALENDAR VIEW ================= -->
+  <div class="view" id="view-calendar">
+    <div class="header">
+      <div>
+        <h1>START CALENDAR</h1>
+        <div class="sub">Who starts when</div>
+      </div>
+    </div>
+
+    <div class="cal-monthbar">
+      <button class="cal-nav-btn" onclick="calShiftMonth(-1)">&#8249;</button>
+      <select class="cal-month-select" id="cal-month-select" onchange="calJumpTo('month', this.value)"></select>
+      <select class="cal-month-select" id="cal-year-select" onchange="calJumpTo('year', this.value)"></select>
+      <button class="cal-nav-btn" onclick="calShiftMonth(1)">&#8250;</button>
+      <button class="cal-today-btn" onclick="calGoToday()">Today</button>
+    </div>
+
+    <div class="cal-filterbar">
+      <select class="cal-filter-select" id="cal-market-filter" onchange="setCalFilter('market', this.value)">
+        <option value="">All markets</option>
+      </select>
+      <select class="cal-filter-select" id="cal-coach-filter" onchange="setCalFilter('coach', this.value)">
+        <option value="">All coaches</option>
+      </select>
+      <span class="cal-readonly-tag">Read only</span>
+      <button class="refresh-btn" onclick="refreshCandidates()" title="Refresh">&#8635;</button>
+    </div>
+
+    <div class="cal-scroll">
+      <div class="cal-weekdays">
+        <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+      <div id="cal-day-panel"></div>
+    </div>
+
+    <div class="bottom-nav">
+      <button class="nav-item" data-nav="home" onclick="goToView('home')"><span class="icon">&#8962;</span><span class="label">Home</span></button>
+      <button class="nav-item" data-nav="candidates" onclick="goToView('candidates')"><span class="icon">&#128101;</span><span class="label">Candidates</span></button>
+      <button class="nav-item active" data-nav="calendar" onclick="goToView('calendar')"><span class="icon">&#128197;</span><span class="label">Calendar</span></button>
+      <button class="nav-item" data-nav="training" onclick="goToView('training')"><span class="icon">&#127891;</span><span class="label">Training</span></button>
+      <button class="nav-item" data-nav="admin" onclick="goToView('admin')"><span class="icon">&#9881;</span><span class="label">Admin</span></button>
+    </div>
+  </div>
+
+  <!-- ================= ADD CANDIDATE VIEW ================= -->
+  <div class="view" id="view-add">
+    <div class="header">
+      <div><h1>ADD CANDIDATE</h1><div class="sub">Submit a new hire</div></div>
+    </div>
+
+    <form id="add-candidate-form" class="form-body" onsubmit="return submitCandidate(event)">
+
+      <div class="form-group">
+        <label class="form-label">Candidate name *</label>
+        <input type="text" class="form-input" id="f-name" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Phone *</label>
+        <input type="tel" class="form-input" id="f-phone" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email *</label>
+        <input type="email" class="form-input" id="f-email" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Position *</label>
+        <select class="form-input" id="f-position" required>
+          <option value="">Select position</option>
+          <option>RSR</option>
+          <option>Store Manager</option>
+          <option>Multi-Store Manager</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Market *</label>
+        <select class="form-input" id="f-market" required>
+          <option value="">Select market</option>
+          <option>Rhode Island</option>
+          <option>Mass</option>
+          <option>Connecticut</option>
+          <option>Knoxville</option>
+          <option>Arkansas</option>
+          <option>Chattanooga</option>
+        </select>
+      </div>
+
+      <div id="roster-banner" style="display:none;"></div>
+
+      <div class="form-group">
+        <label class="form-label">Home store assigned *</label>
+        <select class="form-input" id="f-location" required onchange="onStoreChange(this.value)">
+          <option value="">Select home store</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Training store</label>
+        <select class="form-input" id="f-trainingstore">
+          <option value="">Select training store (if different)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Coach assigned *</label>
+        <select class="form-input" id="f-coach" required>
+          <option value="">Select home store first</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Manager assigned</label>
+        <select class="form-input" id="f-manager">
+          <option value="">Select home store first</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Uniform shirt size *</label>
+        <select class="form-input" id="f-shirtsize" required>
+          <option value="">Select size</option>
+          <optgroup label="Men's">
+            <option>Men's XS</option>
+            <option>Men's S</option>
+            <option>Men's M</option>
+            <option>Men's L</option>
+            <option>Men's XL</option>
+            <option>Men's 2XL</option>
+            <option>Men's 3XL</option>
+            <option>Men's 4XL</option>
+          </optgroup>
+          <optgroup label="Women's">
+            <option>Women's XS</option>
+            <option>Women's S</option>
+            <option>Women's M</option>
+            <option>Women's L</option>
+            <option>Women's XL</option>
+            <option>Women's 2XL</option>
+            <option>Women's 3XL</option>
+            <option>Women's 4XL</option>
+          </optgroup>
+          <option>Other (note size below)</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="shirtsize-other-group" style="display:none;">
+        <label class="form-label">Other size details</label>
+        <input type="text" class="form-input" id="f-shirtsize-other" placeholder="Specify size needed">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Bi-lingual *</label>
+        <select class="form-input" id="f-bilingual" required>
+          <option value="">Select</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Availability</label>
+        <div style="background:#fff; border:1.5px solid var(--gray-border); border-radius:10px; padding:12px; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:grid; grid-template-columns:80px 1fr; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--gray-muted); padding-bottom:4px; border-bottom:0.5px solid var(--gray-border);">
+            <span>Day</span><span>Shift</span>
+          </div>
+          <div id="availability-rows"></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="f-notes" rows="3"></textarea>
+      </div>
+
+      <button type="submit" class="form-submit" id="add-submit-btn">Submit candidate</button>
+      <div class="form-success" id="add-success">Candidate added successfully.</div>
+      <div class="form-error" id="add-error">Something went wrong submitting this candidate. Please try again.</div>
+
+    </form>
+
+    <div class="bottom-nav">
+      <button class="nav-item" data-nav="home" onclick="goToView('home')"><span class="icon">&#8962;</span><span class="label">Home</span></button>
+      <button class="nav-item" data-nav="candidates" onclick="goToView('candidates')"><span class="icon">&#128101;</span><span class="label">Candidates</span></button>
+      <button class="nav-item" data-nav="calendar" onclick="goToView('calendar')"><span class="icon">&#128197;</span><span class="label">Calendar</span></button>
+      <button class="nav-item active" data-nav="training" onclick="goToView('training')"><span class="icon">&#127891;</span><span class="label">Training</span></button>
+      <button class="nav-item" data-nav="admin" onclick="goToView('admin')"><span class="icon">&#9881;</span><span class="label">Admin</span></button>
+    </div>
+  </div>
+
+  <!-- ================= ADMIN VIEW ================= -->
+  <div class="view" id="view-admin">
+
+    <!-- PIN gate -->
+    <div id="admin-pin-gate">
+      <div class="header">
+        <div><h1>ADMIN</h1><div class="sub">PIN required</div></div>
+      </div>
+      <div class="form-body" style="align-items:center;">
+        <div style="width:100%; max-width:260px; margin:0 auto;">
+          <label class="form-label">Enter admin PIN</label>
+          <input type="password" inputmode="numeric" maxlength="6" class="form-input" id="admin-pin-input" style="text-align:center; letter-spacing:4px; font-size:20px; margin-top:8px;">
+          <button class="form-submit" style="margin-top:14px;" onclick="checkAdminPin()">Unlock</button>
+          <div class="form-error" id="admin-pin-error">Incorrect PIN.</div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+      <button class="nav-item" data-nav="home" onclick="goToView('home')"><span class="icon">&#8962;</span><span class="label">Home</span></button>
+      <button class="nav-item" data-nav="candidates" onclick="goToView('candidates')"><span class="icon">&#128101;</span><span class="label">Candidates</span></button>
+      <button class="nav-item" data-nav="calendar" onclick="goToView('calendar')"><span class="icon">&#128197;</span><span class="label">Calendar</span></button>
+      <button class="nav-item" data-nav="training" onclick="goToView('training')"><span class="icon">&#127891;</span><span class="label">Training</span></button>
+      <button class="nav-item active" data-nav="admin" onclick="goToView('admin')"><span class="icon">&#9881;</span><span class="label">Admin</span></button>
+    </div>
+  </div>
+
+    <!-- Unlocked admin content -->
+    <div id="admin-content" style="display:none; flex-direction:column; flex:1;">
+      <div class="header">
+        <div><h1>ADMIN</h1><div class="sub">Cheryl B.</div></div>
+      </div>
+
+      <div class="admin-tabs">
+        <div class="admin-tab active" data-admintab="candidates" onclick="setAdminTab('candidates')">Candidates</div>
+        <div class="admin-tab" data-admintab="recipients" onclick="setAdminTab('recipients')">Email recipients</div>
+        <div class="admin-tab" data-admintab="thresholds" onclick="setAdminTab('thresholds')">Day thresholds</div>
+        <div class="admin-tab" data-admintab="diagnostics" onclick="setAdminTab('diagnostics')">Diagnostics</div>
+      </div>
+
+      <!-- Candidates tab: editable task statuses -->
+      <div class="admin-panel active" id="admin-panel-candidates">
+        <div class="admin-toolbar">
+          <input type="text" class="admin-search" id="admin-search" placeholder="Search name, store, or NTID" oninput="setAdminFilter('search', this.value)">
+          <select class="admin-filter-select" id="admin-coach-filter" onchange="setAdminFilter('coach', this.value)">
+            <option value="">All coaches</option>
+          </select>
+          <select class="admin-filter-select" id="admin-market-filter" onchange="setAdminFilter('market', this.value)">
+            <option value="">All markets</option>
+          </select>
+          <select class="admin-filter-select" id="admin-status-filter" onchange="setAdminFilter('status', this.value)">
+            <option value="all">All statuses</option>
+            <option value="active">Active only</option>
+            <option value="started">Started</option>
+            <option value="didnotstart">Did not start</option>
+            <option value="declined">Declined / no show</option>
+          </select>
+        </div>
+        <div class="admin-list-wrap" id="admin-candidates-list">
+          <div class="loading">Loading candidates...</div>
+        </div>
+      </div>
+
+      <!-- Email recipients tab (backsheet) -->
+      <div class="admin-panel" id="admin-panel-recipients">
+        <div class="candidates-list" id="admin-recipients-list"></div>
+      </div>
+
+      <!-- Day thresholds tab (backsheet) -->
+      <div class="admin-panel" id="admin-panel-thresholds">
+        <div class="candidates-list" id="admin-thresholds-list"></div>
+      </div>
+
+      <!-- Diagnostics tab -->
+      <div class="admin-panel" id="admin-panel-diagnostics">
+        <div class="candidates-list">
+          <div class="form-group">
+            <label class="form-label">Which list to inspect</label>
+            <select class="form-input" id="diagnostic-list-select">
+              <option value="onboarding">EdgeLink Inc New Hire Onboarding Tracker</option>
+              <option value="roster">EdgeLink Store Roster</option>
+              <option value="emailsettings">EdgeLink Email Settings</option>
+            </select>
+          </div>
+          <button class="form-submit" style="margin-bottom:14px;" onclick="runFieldDiagnostic()">Show real SharePoint field names</button>
+          <div id="diagnostic-output" style="font-size:11px; font-family:monospace; white-space:pre-wrap; background:#fff; border:0.5px solid var(--gray-border); border-radius:10px; padding:12px; color:var(--gray-text);"></div>
+        </div>
+      </div>
+
+      </div>
+
+  </div>
+
+</div>
+
+<script>
+  // ===========================================================
+  // NEW HIRE HUB - Phase 1: Home + View Candidates (read-only)
+  // ES5 only. No build step. Deploys directly to GitHub Pages.
+  // Connects to a Microsoft List via Graph API + MSAL.
+  // ===========================================================
+
+  // ---------------- CONFIG ----------------
+  // NOTE: confirm with Cheryl whether the existing Edgelink Azure AD
+  // app registration (used by Time Adjustment / Roster / WFO) already
+  // has access granted to the NEWHIRESS site. If not, this clientId
+  // and/or the site permissions will need to be updated.
+  var CONFIG = {
+    clientId: "13914647-8c23-4ef6-80a9-a3b599c4016b",
+    tenantId: "ebc8d7ee-ee3a-4821-b739-b0b060e7357f",
+    siteHostname: "evolutionwirelessinc.sharepoint.com",
+    sitePath: "/sites/NEWHIRESS",
+    listName: "EdgeLink Inc New Hire Onboarding Tracker",
+    rosterListName: "EdgeLink Store Roster",
+    emailSettingsListName: "EdgeLink Email Settings",
+    redirectUri: window.location.href.split('#')[0]
+  };
+
+  // Task fields shown as progress segments, in display order.
+  // Add a new task in the future by adding one object here AND
+  // adding a matching Choice column on the SharePoint list.
+  // 'choices' documents the valid values for reference / validation only.
+  var TASKS = [
+    { key: "ClearIdentification", label: "Clear identification", choices: ["Sent", "Pending", "Complete"] },
+    { key: "OfferLetter", label: "Offer letter", choices: ["Sent", "Pending", "Complete"] },
+    { key: "NTIDCreated", label: "NTID created", choices: ["Pending", "Complete"] },
+    { key: "OnboardingStatus", label: "Onboarding (paperwork)", choices: ["Sent", "Pending", "Complete"] },
+    { key: "BrinksCredentials", label: "Brinks credentials", choices: ["Requested Creation", "Pending", "Complete"] },
+    { key: "ReadyForDayOne", label: "Ready for day one", choices: ["Pending", "Complete", "Started"] }
+  ];
+
+  // Full 34-store list, used for Home Store and Training Store dropdowns
+  var STORE_LIST = [
+    "TN-BRISTOL",
+    "AR-COLONEL GLENN", "AR-RADIO GEYER",
+    "CT-BUCKLAND HILLS MALL", "CT-NEW LONDON", "CT-NORWICH",
+    "MA-CAPE CODE MALL", "MA-COGGESHALL", "MA-EXCHANGE ST.", "MA-FALLRIVER",
+    "MA-HOLYOKE", "MA-KELLEY SQUARE", "MA-LOCUST STREET", "MA-ROCKDALE",
+    "MA-SOUTH SHORE MALL", "MA-STATE STREET", "MA-WESTERN AVE",
+    "RI-751BROAD", "RI-BALD HILL", "RI-BROAD ST", "RI-BROADWAY",
+    "RI-COVENTRY", "RI-DOUGLAS", "RI-EAST PROVIDENCE", "RI-HARTFORD AVE",
+    "RI-NEWPORT AVE", "RI-PROVIDENCE PLACE MALL", "RI-RESERVOIR AVE",
+    "TN-KEITH ST", "TN-MAGNOLIA", "TN-MORRISTOWN", "TN-NORTH BROADWAY",
+    "TN-SHALLOWFORD RD", "TN-WEST MARKET", "TN-WESTERN AVE"
+  ];
+
+  var ALL_POSITIONS = ["RSR", "Store Manager", "Multi-Store Manager"];
+  var MANAGER_ONLY_POSITIONS = ["RSR"];
+
+  // Store manager roster - email → stores they manage (exact store names matching dropdown)
+  var MANAGER_ROSTER = [
+    { email: "alex.correa@edgelinkinc.com", stores: ["MA-KELLEY SQUARE"] },
+    { email: "alicia.montero@edgelinkinc.com", stores: ["MA-LOCUST STREET"] },
+    { email: "allia@edgelinkinc.com", stores: ["RI-BALD HILL"] },
+    { email: "amina.fellah@edgelinkinc.com", stores: ["MA-SOUTH SHORE MALL", "MA-WESTERN AVE"] },
+    { email: "charisma.heggie@edgelinkinc.com", stores: ["TN-WEST MARKET"] },
+    { email: "chris.paul@edgelinkinc.com", stores: ["RI-DOUGLAS", "RI-COVENTRY"] },
+    { email: "danielrosales@edgelinkinc.com", stores: ["RI-RESERVOIR AVE"] },
+    { email: "franchesca.rader@edgelinkinc.com", stores: ["TN-MORRISTOWN", "TN-NORTH BROADWAY"] },
+    { email: "jazmine.heredia@edgelinkinc.com", stores: ["MA-EXCHANGE ST."] },
+    { email: "jessica.retamar@edgelinkinc.com", stores: ["MA-STATE STREET"] },
+    { email: "josh.landry@edgelinkinc.com", stores: ["CT-NEW LONDON", "CT-NORWICH"] },
+    { email: "karminamendoza@edgelinkinc.com", stores: ["AR-COLONEL GLENN", "AR-RADIO GEYER"] },
+    { email: "loriruiz@edgelinkinc.com", stores: ["MA-ROCKDALE"] },
+    { email: "marquesha.jones@edgelinkinc.com", stores: ["TN-KEITH ST", "TN-SHALLOWFORD RD"] },
+    { email: "mel@edgelinkinc.com", stores: ["TN-MAGNOLIA"] },
+    { email: "napoleao@edgelinkinc.com", stores: ["MA-COGGESHALL"] },
+    { email: "nereidarodriguez@edgelinkinc.com", stores: ["CT-BUCKLAND HILLS MALL"] },
+    { email: "saimary.hernandez@edgelinkinc.com", stores: ["RI-NEWPORT AVE", "RI-EAST PROVIDENCE"] },
+    { email: "yanna.soriano@edgelinkinc.com", stores: ["RI-HARTFORD AVE"] }
+  ];
+
+  // Turn "alex.correa@edgelinkinc.com" into "Alex Correa". Only a fallback for
+  // when the Store Roster list can't be read - the roster is the real source.
+  function managerNameFromEmail(email) {
+    var local = String(email || '').split('@')[0];
+    if (!local) return 'TBD';
+    var parts = local.split('.');
+    var out = [];
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      out.push(parts[i].charAt(0).toUpperCase() + parts[i].slice(1));
+    }
+    return out.length ? out.join(' ') : 'TBD';
+  }
+
+  // STORE_MANAGER_MAP was referenced by onStoreChange but never defined, which
+  // threw a ReferenceError for anyone whose roster fetch failed. Built here.
+  // Verified against the EdgeLink Store Roster list. These win over the names
+  // derived from email addresses, which were only ever a guess at spelling.
+  var STORE_MANAGER_NAMES = {
+    "RI-COVENTRY": "Chris Paul Pierre",
+    "RI-DOUGLAS": "Chris Paul Pierre",
+    "RI-EAST PROVIDENCE": "Saimary Hernandez",
+    "RI-HARTFORD AVE": "Yanna Soriano",
+    "RI-NEWPORT AVE": "Saimary Hernandez",
+    "RI-RESERVOIR AVE": "Daniel Rosales",
+    "TN-KEITH ST": "Marquesha Jones",
+    "TN-MAGNOLIA": "Mel Mcallister",
+    "TN-MORRISTOWN": "Franchesca Rader",
+    "TN-NORTH BROADWAY": "Franchesca Rader",
+    "TN-SHALLOWFORD RD": "Marquesha Jones",
+    "TN-WEST MARKET": "Charisma Heggie"
+  };
+
+  var STORE_MANAGER_MAP = (function () {
+    var map = {};
+    for (var i = 0; i < MANAGER_ROSTER.length; i++) {
+      var m = MANAGER_ROSTER[i];
+      for (var s = 0; s < m.stores.length; s++) {
+        map[m.stores[s].toUpperCase()] = managerNameFromEmail(m.email);
+      }
+    }
+    for (var key in STORE_MANAGER_NAMES) {
+      map[key.toUpperCase()] = STORE_MANAGER_NAMES[key];
+    }
+    return map;
+  })();
+
+  function lookupStoreMap(map, store) {
+    if (!map || !store) return null;
+    var key = String(store).trim().toUpperCase();
+    if (map[key]) return map[key];
+    for (var k in map) {
+      if (k.toUpperCase() === key) return map[k];
+    }
+    return null;
+  }
+
+  function getManagerStores(email) {
+    // Try live roster data first
+    if (storeRosterData.length > 0) {
+      var stores = [];
+      for (var i = 0; i < storeRosterData.length; i++) {
+        var f = storeRosterData[i].fields || {};
+        var managerEmail = (f[ROSTER_FIELD_MAP.ManagerEmail] || "").toLowerCase();
+        if (managerEmail && managerEmail === email.toLowerCase()) {
+          var storeName = f[ROSTER_FIELD_MAP.StoreName] || "";
+          if (storeName) stores.push(storeName);
+        }
+      }
+      if (stores.length > 0) return stores;
+    }
+    // Fall back to hardcoded roster
+    var lc = email.toLowerCase();
+    for (var j = 0; j < MANAGER_ROSTER.length; j++) {
+      if (MANAGER_ROSTER[j].email.toLowerCase() === lc) {
+        return MANAGER_ROSTER[j].stores;
+      }
+    }
+    return null;
+  }
+
+  // Coach identity lookup - anyone signed in with one of these emails
+  // sees the full Position list; everyone else is treated as a Manager
+  // and only sees RSR. Source: Time Adjustment dashboard backsheet.
+  var COACH_EMAILS = [
+    "rose@edgelinkinc.com",
+    "ambulai@edgelinkinc.com",
+    "joel@edgelinkinc.com",
+    "angel.rivera@edgelinkinc.com",
+    "jameswatts@evolutionwireless.net",
+    "cheryl@edgelinkinc.com"
+  ];
+
+  // Real SharePoint internal field names (from Diagnostics tab), mapped to the
+  // friendly keys used throughout this app. SharePoint auto-generates field_N
+  // names when a column is renamed after creation - these do NOT match the
+  // display names shown in the list UI.
+  var FIELD_MAP = {
+    CandidateName: "Title",
+    CandidatePhone: "field_1",
+    CandidateEmail: "field_2",
+    Position: "field_3",
+    Market: "field_4",
+    HomeLocationAssigned: "field_5",
+    StartDate: "field_6",
+    CoachAssigned: "field_7",
+    ManagerAssigned: "field_8",
+    ClearIdentification: "field_9",
+    OfferLetter: "field_10",
+    NTIDCreated: "field_11",
+    OnboardingStatus: "field_12",
+    BrinksCredentials: "field_13",
+    ReadyForDayOne: "field_14",
+    NTID: "field_15",
+    TMobileEmail: "field_16",
+    NotesUpdates: "field_17",
+    TrainingStore: "TrainingStore",
+    UniformShirtSize: "UniformShirtSize",
+    NameTag: "NameTag",
+    BiLingual: "Bi_x002d_Lingual",
+    Availability: "Availability",
+    CandidateStatus: "CandidateStatus"
+  };
+
+  function toRealFields(friendlyFields) {
+    var real = {};
+    for (var key in friendlyFields) {
+      var realKey = FIELD_MAP[key];
+      if (realKey) {
+        real[realKey] = friendlyFields[key];
+      } else {
+        console.warn('No SharePoint field mapping for "' + key + '" - skipped. Add the column in SharePoint and update FIELD_MAP.');
+      }
+    }
+    return real;
+  }
+
+  var msalInstance = null;
+  var graphToken = null;
+  var allCandidates = [];
+  var currentFilter = 'all';
+  var cachedSiteId = null;
+  var cachedListId = null;
+
+  // ---------------- AUTH ----------------
+  function initMsal() {
+    var msalConfig = {
+      auth: {
+        clientId: CONFIG.clientId,
+        authority: "https://login.microsoftonline.com/" + CONFIG.tenantId,
+        redirectUri: CONFIG.redirectUri
+      },
+      cache: { cacheLocation: "sessionStorage" }
+    };
+    msalInstance = new msal.PublicClientApplication(msalConfig);
+    return msalInstance.initialize();
+  }
+
+  function signIn() {
+    if (typeof msal === 'undefined') {
+      document.getElementById('signin-error').textContent = 'Sign-in library failed to load. Check your internet connection and refresh the page.';
+      document.getElementById('signin-error').style.display = 'block';
+      return;
+    }
+    if (!msalInstance) {
+      document.getElementById('signin-error').textContent = 'Still loading, please try again in a moment.';
+      document.getElementById('signin-error').style.display = 'block';
+      return;
+    }
+    // prompt:"select_account" stops MSAL from silently reusing whatever
+    // Microsoft session the browser already has - on a shared store machine
+    // that signed people in as someone else without ever asking.
+    var loginRequest = {
+      scopes: ["Sites.ReadWrite.All", "User.Read"],
+      prompt: "select_account"
+    };
+    msalInstance.loginPopup(loginRequest).then(function (response) {
+      graphToken = response.accessToken;
+      if (response.account) msalInstance.setActiveAccount(response.account);
+      onSignedIn();
+    }).catch(function (err) {
+      console.error(err);
+      document.getElementById('signin-error').style.display = 'block';
+    });
+  }
+
+  function getSignedInAccount() {
+    if (!msalInstance) return null;
+    var active = msalInstance.getActiveAccount();
+    if (active) return active;
+    var accounts = msalInstance.getAllAccounts();
+    // more than one cached account means we can't know which person is sitting
+    // here - make them pick rather than guessing with accounts[0]
+    if (accounts.length === 1) {
+      msalInstance.setActiveAccount(accounts[0]);
+      return accounts[0];
+    }
+    return null;
+  }
+
+  function getTokenSilent() {
+    var account = getSignedInAccount();
+    if (!account) return Promise.reject("no account");
+    var request = { scopes: ["Sites.ReadWrite.All", "User.Read"], account: account };
+    return msalInstance.acquireTokenSilent(request).then(function (response) {
+      graphToken = response.accessToken;
+      return graphToken;
+    });
+  }
+
+  function signOut() {
+    try { sessionStorage.clear(); } catch (e) {}
+    var account = getSignedInAccount();
+    if (msalInstance && account) {
+      msalInstance.logoutPopup({ account: account }).catch(function () { location.reload(); });
+    } else {
+      location.reload();
+    }
+  }
+
+  function onSignedIn() {
+    document.getElementById('signin-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    buildAvailabilityGrid();
+    renderSignedInAs();
+    loadStoreRoster();
+    applyPositionFilterForCurrentUser();
+    loadCandidates();
+  }
+
+  var DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+  var SHIFTS = ['Opening','Mid','Closing','Off'];
+
+  function buildAvailabilityGrid() {
+    var container = document.getElementById('availability-rows');
+    if (!container) return;
+    var html = '';
+    for (var i = 0; i < DAYS.length; i++) {
+      var day = DAYS[i];
+      html += '<div class="avail-row" id="avail-row-' + day + '">';
+      html += '<div class="avail-day">' + day.substring(0,3) + '</div>';
+      html += '<div class="avail-shifts">';
+      for (var j = 0; j < SHIFTS.length; j++) {
+        var shift = SHIFTS[j];
+        var cls = shift === 'Off' ? 'avail-off-btn' : 'avail-shift-btn';
+        html += '<button type="button" class="' + cls + '" data-day="' + day + '" data-shift="' + shift + '" onclick="toggleShift(this)">' + shift + '</button>';
+      }
+      html += '</div></div>';
+    }
+    container.innerHTML = html;
+  }
+
+  function toggleShift(btn) {
+    var day = btn.getAttribute('data-day');
+    // Clear other selections for this day
+    var row = document.getElementById('avail-row-' + day);
+    var btns = row.querySelectorAll('button');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].className = btns[i].getAttribute('data-shift') === 'Off' ? 'avail-off-btn' : 'avail-shift-btn';
+    }
+    // Select this one
+    var isOff = btn.getAttribute('data-shift') === 'Off';
+    btn.className = (isOff ? 'avail-off-btn' : 'avail-shift-btn') + ' selected';
+  }
+
+  function getAvailabilityValue() {
+    var parts = [];
+    for (var i = 0; i < DAYS.length; i++) {
+      var day = DAYS[i];
+      var row = document.getElementById('avail-row-' + day);
+      if (!row) continue;
+      var selected = row.querySelector('button.selected');
+      if (selected && selected.getAttribute('data-shift') !== 'Off') {
+        parts.push(day.substring(0,3) + ':' + selected.getAttribute('data-shift'));
+      }
+    }
+    return parts.join(', ');
+  }
+
+  function onStoreChange(store) {
+    var managerSelect = document.getElementById('f-manager');
+    var coachSelect = document.getElementById('f-coach');
+
+    managerSelect.innerHTML = '';
+    coachSelect.innerHTML = '';
+
+    if (!store) {
+      managerSelect.innerHTML = '<option value="">Select home store first</option>';
+      coachSelect.innerHTML = '<option value="">Select home store first</option>';
+      return;
+    }
+
+    var entry = null, manager = "TBD", coach = "TBD";
+    try {
+      entry = getStoreRosterEntry(store);
+      manager = (entry && entry.manager) || lookupStoreMap(STORE_MANAGER_MAP, store) || "TBD";
+      coach = (entry && entry.coach) || lookupStoreMap(STORE_COACH_MAP, store) || "TBD";
+    } catch (err) {
+      // never leave the selects empty - a blank required field blocks submission
+      console.error('Coach/manager lookup failed for "' + store + '":', err);
+    }
+
+    var mOpt = document.createElement('option');
+    mOpt.value = manager;
+    mOpt.textContent = manager === "TBD" ? "TBD - No manager assigned yet" : manager;
+    managerSelect.appendChild(mOpt);
+
+    var cOpt = document.createElement('option');
+    cOpt.value = coach;
+    cOpt.textContent = coach === "TBD" ? "TBD - No coach assigned yet" : coach;
+    coachSelect.appendChild(cOpt);
+  }
+
+  function populateStoreDropdowns() {
+    var homeSelect = document.getElementById('f-location');
+    var trainingSelect = document.getElementById('f-trainingstore');
+
+    homeSelect.innerHTML = '<option value="">Select home store</option>';
+    trainingSelect.innerHTML = '<option value="">Select training store (if different)</option>';
+
+    // Build store list from live roster data if available, fall back to hardcoded
+    var stores = [];
+    if (storeRosterData.length > 0) {
+      for (var i = 0; i < storeRosterData.length; i++) {
+        var f = storeRosterData[i].fields || {};
+        var name = f[ROSTER_FIELD_MAP.StoreName] || "";
+        if (name) stores.push(name);
+      }
+      stores.sort();
+    } else {
+      stores = STORE_LIST.slice(); // fallback to hardcoded
+    }
+
+    for (var j = 0; j < stores.length; j++) {
+      var opt1 = document.createElement('option');
+      opt1.textContent = stores[j];
+      homeSelect.appendChild(opt1);
+
+      var opt2 = document.createElement('option');
+      opt2.textContent = stores[j];
+      trainingSelect.appendChild(opt2);
+    }
+  }
+
+  function getCurrentUserEmail() {
+    var account = getSignedInAccount();
+    if (!account) return "";
+    return (account.username || "").toLowerCase();
+  }
+
+  function renderSignedInAs() {
+    var bar = document.getElementById('signed-in-as');
+    if (!bar) return;
+    var email = getCurrentUserEmail();
+    if (!email) { bar.style.display = 'none'; return; }
+    var known = COACH_EMAILS.indexOf(email) !== -1 || getManagerStores(email) !== null;
+    bar.style.display = 'flex';
+    bar.innerHTML =
+      '<span class="signed-in-text' + (known ? '' : ' unknown') + '">' +
+      (known ? 'Signed in as ' : 'Not recognized: ') + escapeHtml(email) + '</span>' +
+      '<button class="switch-account-btn" onclick="signOut()">Switch account</button>';
+  }
+
+  function applyPositionFilterForCurrentUser() {
+    var email = getCurrentUserEmail();
+    var isCoach = COACH_EMAILS.indexOf(email) !== -1;
+    var positionsToShow = isCoach ? ALL_POSITIONS : MANAGER_ONLY_POSITIONS;
+
+    var select = document.getElementById('f-position');
+    // clear existing options except the placeholder
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+    for (var i = 0; i < positionsToShow.length; i++) {
+      var opt = document.createElement('option');
+      opt.textContent = positionsToShow[i];
+      select.appendChild(opt);
+    }
+  }
+
+  // ---------------- GRAPH DATA ----------------
+  function graphFetch(url) {
+    return fetch(url, {
+      headers: { Authorization: "Bearer " + graphToken }
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (body) {
+          var detail = "";
+          try {
+            var parsed = JSON.parse(body);
+            if (parsed.error) detail = (parsed.error.code || "") + ": " + (parsed.error.message || "");
+          } catch (e) { detail = String(body).slice(0, 300); }
+          var err = new Error("Graph request failed: " + res.status + (detail ? " - " + detail : ""));
+          err.status = res.status;
+          err.detail = detail;
+          err.url = url;
+          throw err;
+        });
+      }
+      return res.json();
+    });
+  }
+
+  function graphPost(url, body) {
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + graphToken,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (text) {
+          throw new Error("Graph POST failed: " + res.status + " " + text);
+        });
+      }
+      return res.json();
+    });
+  }
+
+  // Digits only, so (413) 777-1175 and 4137771175 compare equal.
+  function normalizePhone(p) {
+    return String(p || '').replace(/\D/g, '');
+  }
+
+  // Looks for an existing candidate with the same phone, email, or name+store.
+  // Read-only - it inspects the list already in memory and writes nothing.
+  function findPossibleDuplicates(name, phone, email, store) {
+    var nName = titleCaseName(name).toLowerCase();
+    var nPhone = normalizePhone(phone);
+    var nEmail = String(email || '').trim().toLowerCase();
+    var nStore = String(store || '').trim().toUpperCase();
+    var hits = [];
+
+    for (var i = 0; i < allCandidates.length; i++) {
+      var c = allCandidates[i];
+      var reason = null;
+
+      if (nPhone && nPhone.length >= 10 && normalizePhone(c.phone) === nPhone) {
+        reason = 'same phone number';
+      } else if (nEmail && String(c.email || '').trim().toLowerCase() === nEmail) {
+        reason = 'same email address';
+      } else if (nName && String(c.name || '').trim().toLowerCase() === nName &&
+                 (!nStore || String(c.homeLocation || '').toUpperCase() === nStore)) {
+        reason = 'same name and store';
+      }
+
+      if (reason) hits.push({ cand: c, reason: reason });
+    }
+    return hits;
+  }
+
+  function submitCandidate(evt) {
+    evt.preventDefault();
+
+    var dupName = document.getElementById('f-name').value;
+    var dupes = findPossibleDuplicates(
+      dupName,
+      document.getElementById('f-phone').value,
+      document.getElementById('f-email').value,
+      document.getElementById('f-location').value
+    );
+
+    if (dupes.length > 0) {
+      var lines = [];
+      for (var d = 0; d < dupes.length && d < 3; d++) {
+        var dc = dupes[d].cand;
+        lines.push('  \u2022 ' + dc.name + ' (' + dupes[d].reason + ')' +
+                   (dc.homeLocation ? ' - ' + dc.homeLocation : '') +
+                   (dc.startDate ? ', starts ' + dc.startDate : ''));
+      }
+      var msg = 'This looks like someone already in the tracker:\n\n' + lines.join('\n') +
+                '\n\nSubmitting again creates a second record and sends the onboarding ' +
+                'emails a second time.\n\nAdd ' + titleCaseName(dupName) + ' anyway?';
+      if (!confirm(msg)) {
+        return;
+      }
+    }
+
+    var btn = document.getElementById('add-submit-btn');
+    var successEl = document.getElementById('add-success');
+    var errorEl = document.getElementById('add-error');
+    successEl.style.display = 'none';
+    errorEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+
+    var shirtSizeVal = document.getElementById('f-shirtsize').value;
+    if (shirtSizeVal === 'Other (note size below)') {
+      shirtSizeVal = 'Other: ' + document.getElementById('f-shirtsize-other').value;
+    }
+
+    var cleanName = titleCaseName(document.getElementById('f-name').value);
+
+    var fields = {
+      CandidateName: cleanName,
+      CandidatePhone: document.getElementById('f-phone').value,
+      CandidateEmail: document.getElementById('f-email').value,
+      Position: document.getElementById('f-position').value,
+      Market: document.getElementById('f-market').value,
+      HomeLocationAssigned: document.getElementById('f-location').value,
+      TrainingStore: document.getElementById('f-trainingstore').value || "",
+      CoachAssigned: document.getElementById('f-coach').value,
+      ManagerAssigned: document.getElementById('f-manager').value,
+      UniformShirtSize: shirtSizeVal,
+      NameTag: cleanName.split(' ')[0],
+      BiLingual: document.getElementById('f-bilingual').value,
+      Availability: getAvailabilityValue(),
+      NotesUpdates: document.getElementById('f-notes').value
+    };
+
+    var realFields = toRealFields(fields);
+    console.log('Full payload before cleanup:', JSON.stringify(realFields, null, 2));
+
+    // Strip empty strings and nulls
+    var cleanFields = {};
+    for (var key in realFields) {
+      var val = realFields[key];
+      if (val !== null && val !== undefined && val !== '') {
+        cleanFields[key] = val;
+      }
+    }
+
+    // Also strip TrainingStore if it wasn't deliberately selected
+    var trainingVal = document.getElementById('f-trainingstore').value;
+    if (!trainingVal || trainingVal === '' || trainingVal === document.getElementById('f-location').value) {
+      delete cleanFields['TrainingStore'];
+    }
+
+    getSiteId().then(function (siteId) {
+      return getListId(siteId).then(function (listId) {
+        var url = "https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + listId + "/items";
+        return graphPost(url, { fields: cleanFields });
+      });
+    }).then(function () {
+      // Populate confirmation screen
+      document.getElementById('success-name').textContent = document.getElementById('f-name').value;
+      document.getElementById('success-store').textContent = document.getElementById('f-location').value;
+      document.getElementById('success-position').textContent = document.getElementById('f-position').value;
+      document.getElementById('success-coach').textContent = document.getElementById('f-coach').value;
+      document.getElementById('success-manager').textContent = document.getElementById('f-manager').value;
+
+      btn.disabled = false;
+      btn.textContent = 'Submit candidate';
+      document.getElementById('add-candidate-form').reset();
+      // Reset coach/manager dropdowns back to placeholder
+      document.getElementById('f-coach').innerHTML = '<option value="">Select home store first</option>';
+      document.getElementById('f-manager').innerHTML = '<option value="">Select home store first</option>';
+
+      loadCandidates();
+      goToView('add-success');
+    }).catch(function (err) {
+      console.error(err);
+      errorEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Submit candidate';
+    });
+
+    return false;
+  }
+
+  function getSiteId() {
+    if (cachedSiteId) return Promise.resolve(cachedSiteId);
+    var url = "https://graph.microsoft.com/v1.0/sites/" + CONFIG.siteHostname + ":" + CONFIG.sitePath;
+    return graphFetch(url).then(function (data) {
+      cachedSiteId = data.id;
+      return cachedSiteId;
+    });
+  }
+
+  // Normalize so "EdgeLink Store Roster", "EdgeLink_Store_Roster" and
+  // "edgelink-store-roster" all compare equal. SharePoint keeps the original
+  // name in the URL after a rename, and Graph is inconsistent about which one
+  // displayName reports - filtering on an exact string silently returns zero.
+  function normalizeListName(s) {
+    return String(s || "").toLowerCase().replace(/[\s_\-]+/g, "");
+  }
+
+  var cachedAllLists = null;
+
+  function getAllLists(siteId) {
+    if (cachedAllLists) return Promise.resolve(cachedAllLists);
+    var url = "https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists?$top=200";
+    return graphFetch(url).then(function (data) {
+      cachedAllLists = data.value || [];
+      return cachedAllLists;
+    });
+  }
+
+  function findListIdByName(siteId, wantedName) {
+    return getAllLists(siteId).then(function (lists) {
+      var want = normalizeListName(wantedName);
+      for (var i = 0; i < lists.length; i++) {
+        if (normalizeListName(lists[i].displayName) === want) return lists[i].id;
+      }
+      // fall back to the URL-derived name, which survives renames
+      for (var j = 0; j < lists.length; j++) {
+        if (normalizeListName(lists[j].name) === want) return lists[j].id;
+      }
+      var visible = [];
+      for (var k = 0; k < lists.length; k++) {
+        visible.push(lists[k].displayName || lists[k].name);
+      }
+      var e = new Error("No list matching '" + wantedName + "'. This account can see: " +
+                        (visible.length ? visible.join(", ") : "(none)"));
+      e.notVisible = true;
+      e.visibleLists = visible;
+      throw e;
+    });
+  }
+
+  function getListId(siteId) {
+    if (cachedListId) return Promise.resolve(cachedListId);
+    return findListIdByName(siteId, CONFIG.listName).then(function (id) {
+      cachedListId = id;
+      console.log("Onboarding Tracker list ID cached:", cachedListId);
+      return cachedListId;
+    });
+  }
+
+  function getListItems(siteId, listId) {
+    var url = "https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + listId + "/items?expand=fields&$top=200";
+    return graphFetch(url).then(function (data) { return data.value || []; });
+  }
+
+  function mapListItemToCandidate(item) {
+    var f = item.fields || {};
+    var tasks = {};
+    for (var i = 0; i < TASKS.length; i++) {
+      var realKey = FIELD_MAP[TASKS[i].key];
+      tasks[TASKS[i].key] = (realKey && f[realKey]) || "Pending";
+    }
+    var name = f[FIELD_MAP.CandidateName] || "Unnamed candidate";
+    var initials = name.split(" ").map(function (p) { return p.charAt(0); }).join("").substring(0, 2).toUpperCase();
+    return {
+      id: item.id,
+      name: name,
+      initials: initials,
+      phone: f[FIELD_MAP.CandidatePhone] || "",
+      email: f[FIELD_MAP.CandidateEmail] || "",
+      position: f[FIELD_MAP.Position] || "",
+      market: f[FIELD_MAP.Market] || "",
+      homeLocation: f[FIELD_MAP.HomeLocationAssigned] || "",
+      trainingStore: f[FIELD_MAP.TrainingStore] || "",
+      startDate: f[FIELD_MAP.StartDate] || "",
+      candidateStatus: f[FIELD_MAP.CandidateStatus] || "Active",
+      notes: f[FIELD_MAP.NotesUpdates] || "",
+      coach: f[FIELD_MAP.CoachAssigned] || "",
+      manager: f[FIELD_MAP.ManagerAssigned] || "",
+      shirtSize: f[FIELD_MAP.UniformShirtSize] || "",
+      nameTag: f[FIELD_MAP.NameTag] || "",
+      ntid: f[FIELD_MAP.NTID] || "",
+      tmobileEmail: f[FIELD_MAP.TMobileEmail] || "",
+      tasks: tasks,
+      // overdue calc is a placeholder here; real threshold-based countdown
+      // gets computed once per-task "last updated" date fields exist on the list
+      overdueDays: 0,
+      nextStep: computeNextStep(tasks)
+    };
+  }
+
+  function computeNextStep(tasks) {
+    for (var i = 0; i < TASKS.length; i++) {
+      if (tasks[TASKS[i].key] !== "Complete") {
+        return TASKS[i].label;
+      }
+    }
+    return "";
+  }
+
+  var isRefreshing = false;
+
+  function refreshCandidates() {
+    if (isRefreshing) return;
+    isRefreshing = true;
+    var btns = document.querySelectorAll('.refresh-btn');
+    for (var b = 0; b < btns.length; b++) {
+      btns[b].classList.add('spinning');
+      btns[b].disabled = true;
+    }
+    loadCandidates(true);
+  }
+
+  function refreshDone() {
+    isRefreshing = false;
+    var btns = document.querySelectorAll('.refresh-btn');
+    for (var b = 0; b < btns.length; b++) {
+      btns[b].classList.remove('spinning');
+      btns[b].disabled = false;
+    }
+    var stamps = document.querySelectorAll('.refresh-stamp');
+    var now = new Date();
+    var hh = now.getHours(), mm = ('0' + now.getMinutes()).slice(-2);
+    var ampm = hh >= 12 ? 'pm' : 'am';
+    hh = hh % 12; if (hh === 0) hh = 12;
+    for (var s = 0; s < stamps.length; s++) {
+      stamps[s].textContent = 'Updated ' + hh + ':' + mm + ampm;
+    }
+  }
+
+  function loadCandidates(isRefresh) {
+    var list = document.getElementById('candidates-list');
+    if (list && !isRefresh) list.innerHTML = '<div class="loading">Loading candidates...</div>';
+
+    getSiteId().then(function (siteId) {
+      return getListId(siteId).then(function (listId) {
+        return getListItems(siteId, listId);
+      });
+    }).then(function (items) {
+      allCandidates = items.map(mapListItemToCandidate);
+      renderStats();
+      renderCounts();
+      renderCandidates();
+      if (document.getElementById('view-calendar').className.indexOf('active') !== -1) {
+        renderCalendar();
+      }
+      if (document.getElementById('admin-content').style.display === 'flex') {
+        renderAdminCandidates();
+      }
+      refreshDone();
+    }).catch(function (err) {
+      console.error(err);
+      refreshDone();
+      if (list && !isRefresh) {
+        list.innerHTML = '<div class="empty-state">Could not load candidates. Check sign-in and list configuration.</div>';
+      }
+    });
+  }
+
+  // ---------------- DISPLAY HELPERS ----------------
+  function taskCompleteCount(c) {
+    var count = 0;
+    for (var i = 0; i < TASKS.length; i++) {
+      if (c.tasks[TASKS[i].key] === 'Complete') count++;
+    }
+    return count;
+  }
+
+  function isReady(c) {
+    return c.tasks.ReadyForDayOne === 'Complete';
+  }
+
+  // "Started" lives in two places: the Candidate Status field and the
+  // Ready for day one task. Either one counts, so a candidate lands in the
+  // right group whichever field the person happened to set.
+  function hasStarted(c) {
+    return c.candidateStatus === 'Started' || c.tasks.ReadyForDayOne === 'Started';
+  }
+
+  function isDeclined(c) {
+    return c.candidateStatus === 'Declined' || c.candidateStatus === 'No Show';
+  }
+
+  // Freshly submitted: every task still sits at its default "Pending", so no
+  // one has picked this candidate up yet. As soon as any task moves off
+  // Pending they drop into whichever step they're actually on.
+  function isNewSubmission(c) {
+    for (var i = 0; i < TASKS.length; i++) {
+      if (c.tasks[TASKS[i].key] !== 'Pending') return false;
+    }
+    return true;
+  }
+
+  // Accepted the offer but never made it to day one - tracked separately from
+  // Declined (turned the offer down) so the two can be reported apart.
+  function didNotStart(c) {
+    return c.candidateStatus === 'Did Not Start';
+  }
+
+  // Anyone no longer moving toward a start date, for stats and the calendar.
+  function outOfPipeline(c) {
+    return isDeclined(c) || didNotStart(c);
+  }
+
+  function isOverdue(c) {
+    return c.overdueDays && c.overdueDays > 0 && !isReady(c);
+  }
+
+  function statusChip(c) {
+    if (isReady(c)) {
+      return { text: 'Day one ready', bg: '#EAF3DE', color: '#3B6D11' };
+    }
+    if (isOverdue(c)) {
+      return { text: c.overdueDays + 'd left', bg: '#FCEBEB', color: '#A32D2D' };
+    }
+    return { text: 'On track', bg: '#F3E9F6', color: '#4A1B5C' };
+  }
+
+  function avatarColors(c) {
+    if (isReady(c)) return { bg: '#EAF3DE', color: '#3B6D11' };
+    if (isOverdue(c)) return { bg: '#FCEBEB', color: '#A32D2D' };
+    return { bg: '#F3E9F6', color: '#4A1B5C' };
+  }
+
+  function stripeColor(c) {
+    if (isReady(c)) return '#639922';
+    if (isOverdue(c)) return '#D85A30';
+    return '#5DCAA5';
+  }
+
+  function segColor(status) {
+    if (status === 'Complete') return '#5DCAA5';
+    if (status === 'Started') return '#639922';
+    if (status === 'Pending') return '#FAC775';
+    if (status === 'Requested Creation') return '#378ADD';
+    if (status === 'Sent') return '#FAC775';
+    if (status === 'Welcome sent') return '#5DCAA5';
+    return '#EEEEEE';
+  }
+
+  // Who this signed-in user is allowed to see, independent of status.
+  function isVisibleToCurrentUser(c) {
+    var email = getCurrentUserEmail();
+    if (email === "cheryl@edgelinkinc.com") return true;
+
+    var coachName = getCoachNameFromEmail(email);
+    if (coachName) {
+      return !!(c.coach && c.coach.toLowerCase().indexOf(coachName.toLowerCase()) !== -1);
+    }
+
+    var managerStores = getManagerStores(email);
+    if (managerStores) {
+      for (var s = 0; s < managerStores.length; s++) {
+        if (c.homeLocation && c.homeLocation.toUpperCase() === managerStores[s].toUpperCase()) return true;
+      }
+    }
+    return false;
+  }
+
+  // Board pool: everything this user may see except declined. Keeps people
+  // who have started so they appear under "Already started" rather than
+  // silently vanishing off the coach and manager view.
+  function getBoardCandidates() {
+    var out = [];
+    for (var i = 0; i < allCandidates.length; i++) {
+      var c = allCandidates[i];
+      if (isDeclined(c)) continue;   // did-not-start stays, in its own group
+      if (isVisibleToCurrentUser(c)) out.push(c);
+    }
+    return out;
+  }
+
+  function getActiveCandidates() {
+    var active = [];
+    for (var i = 0; i < allCandidates.length; i++) {
+      var c = allCandidates[i];
+      if (hasStarted(c) || outOfPipeline(c)) continue;
+      if (isVisibleToCurrentUser(c)) active.push(c);
+    }
+    return active;
+  }
+
+  // The calendar is deliberately company-wide and read-only: every signed-in
+  // user sees every market's start dates, regardless of coach or manager scope.
+  // Keeps people who already started so past days aren't blank.
+  function getCalendarCandidates() {
+    var out = [];
+    for (var i = 0; i < allCandidates.length; i++) {
+      if (!outOfPipeline(allCandidates[i])) out.push(allCandidates[i]);
+    }
+    return out;
+  }
+
+  function getCoachNameFromEmail(email) {
+    // Try live roster first
+    if (storeRosterData.length > 0) {
+      for (var i = 0; i < storeRosterData.length; i++) {
+        var f = storeRosterData[i].fields || {};
+        var ce = (f[ROSTER_FIELD_MAP.CoachEmail] || "").toLowerCase();
+        if (ce && ce === email.toLowerCase()) {
+          return f[ROSTER_FIELD_MAP.CoachAssigned] || null;
+        }
+      }
+    }
+    // Hardcoded fallback
+    var map = {
+      "rose@edgelinkinc.com": "Rose Perez",
+      "ambulai@edgelinkinc.com": "Ambulai Sheku",
+      "joel@edgelinkinc.com": "Joel Montero",
+      "angel.rivera@edgelinkinc.com": "Manny Rivera",
+      "jameswatts@evolutionwireless.net": "Mr. Watts",
+      "cheryl@edgelinkinc.com": "Cheryl"
+    };
+    return map[email.toLowerCase()] || null;
+  }
+
+  function getCoachEmailForSignedInUser() {
+    var email = getCurrentUserEmail();
+    // Check live roster data first
+    if (storeRosterData.length > 0) {
+      for (var i = 0; i < storeRosterData.length; i++) {
+        var f = storeRosterData[i].fields || {};
+        var coachEmail = (f[ROSTER_FIELD_MAP.CoachEmail] || "").toLowerCase();
+        if (coachEmail && coachEmail === email) {
+          return email;
+        }
+      }
+    }
+    // Fall back to hardcoded coach list
+    if (COACH_EMAILS.indexOf(email) !== -1) return email;
+    return null;
+  }
+
+  function renderStats() {
+    var active = 0, overdue = 0, ready = 0;
+    var pool = getActiveCandidates();
+    for (var i = 0; i < pool.length; i++) {
+      var c = pool[i];
+      if (isReady(c)) { ready++; } else { active++; }
+      if (isOverdue(c)) { overdue++; }
+    }
+    document.getElementById('stat-active').textContent = active;
+    document.getElementById('stat-overdue').textContent = overdue;
+    document.getElementById('stat-ready').textContent = ready;
+  }
+
+  function renderCounts() {
+    var pool = getBoardCandidates();
+    var overdueCount = 0, readyCount = 0;
+    for (var i = 0; i < pool.length; i++) {
+      if (isOverdue(pool[i])) overdueCount++;
+      if (isReady(pool[i])) readyCount++;
+    }
+    document.getElementById('count-all').textContent = pool.length;
+    document.getElementById('count-overdue').textContent = overdueCount;
+    document.getElementById('count-ready').textContent = readyCount;
+  }
+
+  function renderCandidates() {
+    var list = document.getElementById('candidates-list');
+    var pool = getBoardCandidates();
+    var filtered = [];
+    for (var i = 0; i < pool.length; i++) {
+      var c = pool[i];
+      if (currentFilter === 'all') { filtered.push(c); }
+      else if (currentFilter === 'overdue' && isOverdue(c)) { filtered.push(c); }
+      else if (currentFilter === 'ready' && isReady(c)) { filtered.push(c); }
+    }
+
+    if (filtered.length === 0) {
+      var email = getCurrentUserEmail();
+      var isCoach = COACH_EMAILS.indexOf(email) !== -1;
+      var managerStores = getManagerStores(email);
+      if (!isCoach && !managerStores && email !== "cheryl@edgelinkinc.com") {
+        list.innerHTML = '<div class="empty-state">Your account (' + email + ') is not yet set up in the system. Please contact Cheryl at hr@edgelinkinc.com to get access.</div>';
+      } else {
+        list.innerHTML = '<div class="empty-state">No candidates match this filter.</div>';
+      }
+      return;
+    }
+
+    // Same stage grouping the admin tab uses, so coaches and managers see
+    // their people organised by the step each one is on.
+    var vBuckets = {};
+    for (var vb = 0; vb < filtered.length; vb++) {
+      var vKey = candidateStageKey(filtered[vb]);
+      if (!vBuckets[vKey]) vBuckets[vKey] = [];
+      vBuckets[vKey].push(filtered[vb]);
+    }
+
+    var vOrder = stageOrder();
+    var ordered = [];
+    for (var vo = 0; vo < vOrder.length; vo++) {
+      var vGroup = vBuckets[vOrder[vo]];
+      if (!vGroup || vGroup.length === 0) continue;
+
+      vGroup.sort(function (a, b) {
+        var da = daysUntilStart(a), db = daysUntilStart(b);
+        if (da === null && db === null) return String(a.name).localeCompare(b.name);
+        if (da === null) return 1;
+        if (db === null) return -1;
+        return da - db;
+      });
+
+      ordered.push({ header: STAGE_META[vOrder[vo]], count: vGroup.length });
+      for (var vg = 0; vg < vGroup.length; vg++) ordered.push({ cand: vGroup[vg] });
+    }
+
+    var html = '';
+    for (var j = 0; j < ordered.length; j++) {
+      if (ordered[j].header) {
+        var vh = ordered[j].header;
+        html += '<div class="view-stage-head">';
+        if (vh.isNew) html += '<span class="stage-new">NEW</span>';
+        else if (vh.step) html += '<span class="stage-num">' + vh.step + '</span>';
+        html += '<span class="view-stage-name">' + escapeHtml(vh.label).toUpperCase() + '</span>';
+        html += '<span class="mkt-pill">' + ordered[j].count + '</span>';
+        html += '</div>';
+        continue;
+      }
+      var cand = ordered[j].cand;
+      var flagged = didNotStart(cand);
+      var chip = flagged
+        ? { text: 'Did not start', bg: '#FBEEDC', color: '#8A5A00' }
+        : statusChip(cand);
+      var av = flagged ? { bg: '#FBEEDC', color: '#8A5A00' } : avatarColors(cand);
+      var stripe = flagged ? '#C77800' : stripeColor(cand);
+
+      html += '<div class="candidate-card" id="view-card-' + cand.id + '">';
+      html += '<div class="stripe" style="background:' + stripe + ';"></div>';
+
+      // Collapsed header
+      html += '<div class="candidate-top" onclick="toggleViewCard(\'' + cand.id + '\')" style="cursor:pointer;">';
+      html += '<div class="avatar" style="background:' + av.bg + '; color:' + av.color + ';">' + cand.initials + '</div>';
+      html += '<div class="candidate-info">';
+      html += '<div class="candidate-name"' + (flagged ? ' style="color:#8A8780;"' : '') + '>' + cand.name + '</div>';
+      html += '<div class="candidate-meta">' + cand.position + ' &middot; ' + cand.market + '</div>';
+      html += '</div>';
+      html += '<div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">';
+      html += '<div class="status-chip" style="background:' + chip.bg + '; color:' + chip.color + ';">' + chip.text + '</div>';
+      html += '<div class="view-chevron" style="font-size:16px; color:var(--gray-muted); transition:transform 0.15s;">&#8250;</div>';
+      html += '</div>';
+      html += '</div>';
+
+      // Expanded detail
+      html += '<div class="view-card-detail" style="display:none; padding-top:10px; border-top:0.5px solid var(--gray-border); margin-top:10px;">';
+      for (var k = 0; k < TASKS.length; k++) {
+        var task = TASKS[k];
+        var st = cand.tasks[task.key];
+        var tbg = st === 'Complete' ? '#E1F5EE' : st === 'Pending' ? '#FFF8E8' : st === 'Requested Creation' ? '#EAF2FC' : '#F3F3F3';
+        var tc = st === 'Complete' ? '#0F6E56' : st === 'Pending' ? '#854F0B' : st === 'Requested Creation' ? '#1C5EA8' : '#5F5E5A';
+        html += '<div style="display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:0.5px solid var(--gray-border);">';
+        html += '<span style="font-size:12px; color:var(--gray-text);">' + task.label + '</span>';
+        html += '<span style="font-size:10px; font-weight:600; padding:3px 9px; border-radius:10px; background:' + tbg + '; color:' + tc + ';">' + st + '</span>';
+        html += '</div>';
+      }
+      html += '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">';
+      if (cand.shirtSize) html += '<span style="font-size:10px; background:var(--gray-border); padding:3px 8px; border-radius:8px;">Shirt: ' + cand.shirtSize + '</span>';
+      if (cand.nameTag) html += '<span style="font-size:10px; background:var(--gray-border); padding:3px 8px; border-radius:8px;">Tag: ' + cand.nameTag + '</span>';
+      if (cand.startDate) html += '<span style="font-size:10px; background:var(--gray-border); padding:3px 8px; border-radius:8px;">Start: ' + cand.startDate + '</span>';
+      if (cand.ntid) html += '<span style="font-size:10px; background:var(--gray-border); padding:3px 8px; border-radius:8px;">NTID: ' + cand.ntid + '</span>';
+      html += '</div>';
+      html += '</div>';
+
+      html += '</div>';
+    }
+    list.innerHTML = html;
+  }
+
+  function toggleViewCard(id) {
+    var card = document.getElementById('view-card-' + id);
+    if (!card) return;
+    var detail = card.querySelector('.view-card-detail');
+    var chevron = card.querySelector('.view-chevron');
+    if (detail.style.display === 'none') {
+      detail.style.display = 'block';
+      if (chevron) chevron.style.transform = 'rotate(90deg)';
+    } else {
+      detail.style.display = 'none';
+      if (chevron) chevron.style.transform = '';
+    }
+  }
+
+  // ---------------- ADMIN CONFIG ----------------
+  var ADMIN_PIN = "3833"; // matches Edgelink's standard admin PIN across tools
+
+  // Backsheet defaults: per-task email recipients (on complete / on overdue)
+  // and day thresholds. Stored in localStorage so Cheryl can edit them from
+  // Admin without needing a developer - NOT yet wired to actual email sending
+  // (that's the Power Automate phase, still to come).
+  var BACKSHEET_STORAGE_KEY = "newhirehub_backsheet_v1";
+
+  function defaultBacksheet() {
+    var sheet = {};
+    for (var i = 0; i < TASKS.length; i++) {
+      sheet[TASKS[i].key] = {
+        onCompleteRecipients: "coach,manager",
+        onOverdueRecipients: "coach,manager",
+        thresholdDays: 3
+      };
+    }
+    // Ready for Day One final email needs extra recipients including TBD person
+    sheet.ReadyForDayOne.onCompleteRecipients = "coach,manager,cheryl@edgelinkinc.com,";
+    return sheet;
+  }
+
+  function loadBacksheet() {
+    try {
+      var raw = localStorage.getItem(BACKSHEET_STORAGE_KEY);
+      if (!raw) return defaultBacksheet();
+      var parsed = JSON.parse(raw);
+      // merge with defaults in case new tasks were added since last save
+      var defaults = defaultBacksheet();
+      for (var key in defaults) {
+        if (!parsed[key]) parsed[key] = defaults[key];
+      }
+      return parsed;
+    } catch (e) {
+      return defaultBacksheet();
+    }
+  }
+
+  function saveBacksheet(sheet) {
+    localStorage.setItem(BACKSHEET_STORAGE_KEY, JSON.stringify(sheet));
+  }
+
+  var backsheet = loadBacksheet();
+
+  // ---------------- ADMIN: PIN GATE ----------------
+  function checkAdminPin() {
+    var input = document.getElementById('admin-pin-input').value;
+    var errorEl = document.getElementById('admin-pin-error');
+    if (input === ADMIN_PIN) {
+      errorEl.style.display = 'none';
+      document.getElementById('admin-pin-gate').style.display = 'none';
+      document.getElementById('admin-content').style.display = 'flex';
+      renderAdminCandidates();
+      renderBacksheetRecipients();
+      renderBacksheetThresholds();
+    } else {
+      errorEl.style.display = 'block';
+      document.getElementById('admin-pin-input').value = '';
+    }
+  }
+
+  function setAdminTab(tab) {
+    var tabs = document.querySelectorAll('.admin-tab');
+    for (var i = 0; i < tabs.length; i++) { tabs[i].className = 'admin-tab'; }
+    document.querySelector('.admin-tab[data-admintab="' + tab + '"]').className = 'admin-tab active';
+
+    var panels = document.querySelectorAll('.admin-panel');
+    for (var j = 0; j < panels.length; j++) { panels[j].className = 'admin-panel'; }
+    document.getElementById('admin-panel-' + tab).className = 'admin-panel active';
+  }
+
+  // ---------------- ADMIN: CANDIDATE TASK EDITING ----------------
+  // ---------------- ADMIN: FILTERS + COLLAPSE STATE ----------------
+  var ADMIN_COLLAPSE_KEY = "newhirehub_admin_collapsed_v1";
+  var adminFilters = { search: "", coach: "", market: "", status: "all" };
+
+  function loadCollapsedMarkets() {
+    try {
+      var raw = localStorage.getItem(ADMIN_COLLAPSE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+
+  function saveCollapsedMarkets() {
+    try { localStorage.setItem(ADMIN_COLLAPSE_KEY, JSON.stringify(collapsedMarkets)); } catch (e) {}
+  }
+
+  var collapsedMarkets = loadCollapsedMarkets();
+
+  function toggleMarket(marketName) {
+    collapsedMarkets[marketName] = !collapsedMarkets[marketName];
+    saveCollapsedMarkets();
+    renderAdminCandidates();
+  }
+
+  function setAdminFilter(kind, value) {
+    adminFilters[kind] = value;
+    renderAdminCandidates();
+  }
+
+  function clearAdminFilters() {
+    adminFilters = { search: "", coach: "", market: "", status: "all" };
+    var s = document.getElementById('admin-search');
+    var cf = document.getElementById('admin-coach-filter');
+    var mf = document.getElementById('admin-market-filter');
+    var sf = document.getElementById('admin-status-filter');
+    if (s) s.value = '';
+    if (cf) cf.value = '';
+    if (mf) mf.value = '';
+    if (sf) sf.value = 'all';
+    renderAdminCandidates();
+  }
+
+  function adminFiltersActive() {
+    return adminFilters.search !== '' || adminFilters.coach !== '' ||
+           adminFilters.market !== '' || adminFilters.status !== 'all';
+  }
+
+  function candidateCoach(c) {
+    var v = (c.coach || '').trim();
+    if (!v || v.toUpperCase() === 'TBD') return '';
+    return v;
+  }
+
+  function matchesAdminFilters(c) {
+    if (adminFilters.market && (c.market || '') !== adminFilters.market) return false;
+    if (adminFilters.status === 'active' && (outOfPipeline(c) || hasStarted(c))) return false;
+    if (adminFilters.status === 'didnotstart' && !didNotStart(c)) return false;
+    if (adminFilters.status === 'started' && !hasStarted(c)) return false;
+    if (adminFilters.status === 'declined' && !isDeclined(c)) return false;
+
+    if (adminFilters.coach === '__unassigned') {
+      if (candidateCoach(c) !== '') return false;
+    } else if (adminFilters.coach !== '') {
+      if (candidateCoach(c) !== adminFilters.coach) return false;
+    }
+
+    var q = adminFilters.search.trim().toLowerCase();
+    if (q) {
+      var hay = [c.name, c.position, c.market, c.homeLocation, c.trainingStore, c.ntid, candidateCoach(c)]
+        .join(' ').toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  }
+
+  function populateMarketFilter() {
+    var sel = document.getElementById('admin-market-filter');
+    if (!sel) return;
+    var markets = [];
+    for (var i = 0; i < allCandidates.length; i++) {
+      var mk = allCandidates[i].market || '';
+      if (mk && markets.indexOf(mk) === -1) markets.push(mk);
+    }
+    markets.sort();
+    var sig = markets.join('|');
+    if (sel.getAttribute('data-sig') !== sig) {
+      sel.setAttribute('data-sig', sig);
+      var html = '<option value="">All markets</option>';
+      for (var m = 0; m < markets.length; m++) {
+        html += '<option value="' + escapeAttr(markets[m]) + '">' + escapeHtml(markets[m]) + '</option>';
+      }
+      sel.innerHTML = html;
+    }
+    sel.value = adminFilters.market;
+    if (sel.value !== adminFilters.market) { adminFilters.market = ''; sel.value = ''; }
+    sel.className = 'admin-filter-select' + (adminFilters.market ? ' filtered' : '');
+  }
+
+  function populateCoachFilter() {
+    var sel = document.getElementById('admin-coach-filter');
+    if (!sel) return;
+    var names = [], hasUnassigned = false;
+    for (var i = 0; i < allCandidates.length; i++) {
+      var cn = candidateCoach(allCandidates[i]);
+      if (!cn) { hasUnassigned = true; continue; }
+      if (names.indexOf(cn) === -1) names.push(cn);
+    }
+    names.sort();
+
+    var signature = names.join('|') + (hasUnassigned ? '|__u' : '');
+    if (sel.getAttribute('data-sig') === signature) return;
+    sel.setAttribute('data-sig', signature);
+
+    var current = adminFilters.coach;
+    var html = '<option value="">All coaches</option>';
+    for (var n = 0; n < names.length; n++) {
+      html += '<option value="' + escapeAttr(names[n]) + '">' + escapeHtml(names[n]) + '</option>';
+    }
+    if (hasUnassigned) html += '<option value="__unassigned">Unassigned / TBD</option>';
+    sel.innerHTML = html;
+    sel.value = current;
+    if (sel.value !== current) { adminFilters.coach = ''; sel.value = ''; }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
+
+  function jsStr(s) {
+    return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+
+  // "joel montero" -> "Joel Montero". Leaves words that already carry internal
+  // capitals alone so McCoy, DeSoto and O'Brien survive untouched.
+  function titleCaseName(str) {
+    var s = String(str || '').trim().replace(/\s+/g, ' ');
+    if (!s) return '';
+    return s.split(' ').map(function (word) {
+      // preserve deliberate mixed case (McCoy, DeSoto) but fix caps lock
+      var isAllCaps = word === word.toUpperCase();
+      if (!isAllCaps && /[A-Z]/.test(word.slice(1))) return word;
+      return word.split('-').map(function (part) {
+        return part.split("'").map(function (bit) {
+          if (!bit) return bit;
+          return bit.charAt(0).toUpperCase() + bit.slice(1).toLowerCase();
+        }).join("'");
+      }).join('-');
+    }).join(' ');
+  }
+
+  function candidateInitials(name) {
+    var parts = String(name || '').trim().split(/\s+/);
+    if (!parts[0]) return '?';
+    var a = parts[0].charAt(0);
+    var b = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+    return (a + b).toUpperCase();
+  }
+
+  function daysUntilStart(c) {
+    var parts = String(c.startDate || '').split('/');
+    if (parts.length !== 3) return null;
+    var d = new Date(parseInt(parts[2], 10), parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
+    if (isNaN(d.getTime())) return null;
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Math.round((d - today) / 86400000);
+  }
+
+  // overdueDays is still hardcoded to 0 upstream, so "behind" is derived from
+  // the start date instead: starting within a week and not day-one ready.
+  function needsAttention(c) {
+    if (outOfPipeline(c) || hasStarted(c) || isReady(c)) return false;
+    if (isOverdue(c)) return true;
+    var d = daysUntilStart(c);
+    return d !== null && d <= 7;
+  }
+
+  function findCandidate(itemId) {
+    for (var i = 0; i < allCandidates.length; i++) {
+      if (allCandidates[i].id === itemId) return allCandidates[i];
+    }
+    return null;
+  }
+
+  // Brinks can only be requested once the NTID and T-Mobile email exist -
+  // the Brinks department needs both to create the credentials.
+  function brinksBlockers(c) {
+    var missing = [];
+    if (!c || !String(c.ntid || '').trim()) missing.push('NTID');
+    if (!c || !String(c.tmobileEmail || '').trim()) missing.push('T-Mobile email');
+    return missing;
+  }
+
+  function brinksReady(c) {
+    return brinksBlockers(c).length === 0;
+  }
+
+  // Group keys, in the order they appear in the admin list.
+  var STAGE_META = (function () {
+    var meta = {
+      "__new": { label: "Newly added", step: 0, isNew: true },
+      "__started": { label: "Already started", step: 0 },
+      "__ready": { label: "Day one ready", step: 0 },
+      "__didnotstart": { label: "Did not start", step: 0 },
+      "__declined": { label: "Declined / no show", step: 0 }
+    };
+    for (var i = 0; i < TASKS.length; i++) {
+      meta["task:" + TASKS[i].key] = { label: TASKS[i].label, step: i + 1 };
+    }
+    return meta;
+  })();
+
+  function stageOrder() {
+    var order = ["__new"];
+    for (var i = 0; i < TASKS.length; i++) order.push("task:" + TASKS[i].key);
+    order.push("__ready");
+    order.push("__started");
+    order.push("__didnotstart");
+    order.push("__declined");
+    return order;
+  }
+
+  function candidateStageKey(c) {
+    if (isDeclined(c)) return "__declined";
+    if (didNotStart(c)) return "__didnotstart";
+    if (hasStarted(c)) return "__started";
+    if (isNewSubmission(c)) return "__new";
+    for (var i = 0; i < TASKS.length; i++) {
+      if (c.tasks[TASKS[i].key] !== "Complete") return "task:" + TASKS[i].key;
+    }
+    return "__ready";
+  }
+
+  function taskPillStyle(val) {
+    if (val === 'Complete' || val === 'Started') return 'background:#EAF3DE;color:#3B6D11;border-color:#C0DD97;';
+    if (val === 'Requested Creation') return 'background:#E6F1FB;color:#185FA5;border-color:#B5D4F4;';
+    if (val === 'Welcome sent') return 'background:#E1F5EE;color:#0F6E56;border-color:#A8DFCC;';
+    if (val === 'Sent') return 'background:#FAEEDA;color:#854F0B;border-color:#FAC775;';
+    return 'background:#FAEEDA;color:#854F0B;border-color:#FAC775;';
+  }
+
+  function countChipStyle(done, total) {
+    if (done >= total) return 'background:#EAF3DE;color:#3B6D11;';
+    if (done >= Math.ceil(total / 2)) return 'background:#FAEEDA;color:#854F0B;';
+    return 'background:#FCEBEB;color:#A32D2D;';
+  }
+
+  // ---------------- ADMIN: CANDIDATE TASK EDITING ----------------
+  function renderAdminCandidates() {
+    var container = document.getElementById('admin-candidates-list');
+    if (!container) return;
+
+    populateCoachFilter();
+    populateMarketFilter();
+
+    var coachSel = document.getElementById('admin-coach-filter');
+    var statusSel = document.getElementById('admin-status-filter');
+    if (coachSel) coachSel.className = 'admin-filter-select' + (adminFilters.coach ? ' filtered' : '');
+    if (statusSel) statusSel.className = 'admin-filter-select' + (adminFilters.status !== 'all' ? ' filtered' : '');
+
+    if (allCandidates.length === 0) {
+      container.innerHTML = '<div class="empty-state">No candidates yet.</div>';
+      return;
+    }
+
+    var expandedIds = {};
+    var existingCards = document.querySelectorAll('.admin-candidate-card.expanded');
+    for (var e = 0; e < existingCards.length; e++) {
+      expandedIds[existingCards[e].id] = true;
+    }
+
+    var filtering = adminFiltersActive();
+    var visible = [];
+    for (var v = 0; v < allCandidates.length; v++) {
+      if (matchesAdminFilters(allCandidates[v])) visible.push(allCandidates[v]);
+    }
+
+    var html = '';
+    if (filtering) {
+      html += '<div class="admin-filter-bar">';
+      html += '<span class="admin-filter-count">Showing ' + visible.length + ' of ' + allCandidates.length + ' candidates</span>';
+      html += '<button class="admin-clear-filters" onclick="clearAdminFilters()">Clear filters</button>';
+      html += '</div>';
+    }
+
+    if (visible.length === 0) {
+      html += '<div class="empty-state">No candidates match these filters.</div>';
+      container.innerHTML = html;
+      return;
+    }
+
+    // Grouped by the step each candidate is stuck on. TASKS is in sequence, so
+    // a candidate's stage is simply their first task that isn't Complete.
+    var buckets = {};
+    for (var g = 0; g < visible.length; g++) {
+      var key = candidateStageKey(visible[g]);
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push(visible[g]);
+    }
+
+    var stageKeys = stageOrder();
+
+    for (var mk = 0; mk < stageKeys.length; mk++) {
+      var stageKey = stageKeys[mk];
+      var groupCandidates = buckets[stageKey];
+      if (!groupCandidates || groupCandidates.length === 0) continue;
+
+      // soonest start date first - whoever is closest to day one is most urgent
+      groupCandidates.sort(function (a, b) {
+        var da = daysUntilStart(a), db = daysUntilStart(b);
+        if (da === null && db === null) return String(a.name).localeCompare(b.name);
+        if (da === null) return 1;
+        if (db === null) return -1;
+        return da - db;
+      });
+
+      var behindCount = 0;
+      for (var mc = 0; mc < groupCandidates.length; mc++) {
+        if (needsAttention(groupCandidates[mc])) behindCount++;
+      }
+
+      var meta = STAGE_META[stageKey];
+      // filters force every matching group open, so results are never hidden
+      var isCollapsed = !filtering && !!collapsedMarkets[stageKey];
+
+      html += '<div class="mkt-group' + (isCollapsed ? ' collapsed' : '') + '">';
+      html += '<div class="mkt-head" onclick="toggleMarket(\'' + jsStr(stageKey) + '\')">';
+      html += '<span class="mkt-chev">&#8250;</span>';
+      if (meta.isNew) {
+        html += '<span class="stage-new">NEW</span>';
+      } else if (meta.step) {
+        html += '<span class="stage-num">' + meta.step + '</span>';
+      }
+      html += '<span class="mkt-name">' + escapeHtml(meta.label).toUpperCase() + '</span>';
+      html += '<span class="mkt-pill">' + groupCandidates.length + '</span>';
+      html += '<div style="flex:1;"></div>';
+      if (behindCount > 0) {
+        html += '<span class="mkt-pill" style="background:#FCEBEB;color:#A32D2D;">' + behindCount + ' behind</span>';
+      }
+      html += '</div>';
+
+      html += '<div class="mkt-body">';
+
+      for (var ci = 0; ci < groupCandidates.length; ci++) {
+        var c = groupCandidates[ci];
+        var doneCount = taskCompleteCount(c);
+        var av = avatarColors(c);
+        var declined = isDeclined(c);
+        var dns = didNotStart(c);
+        var muted = declined || dns;
+        var cardStyle = declined ? ' style="border-left:3px solid #E24B4A;"'
+                      : dns ? ' style="border-left:3px solid #C77800;"'
+                      : hasStarted(c) ? ' style="border-left:3px solid #639922;"' : '';
+
+        html += '<div class="admin-candidate-card' + (expandedIds['admin-card-' + c.id] ? ' expanded' : '') + '" id="admin-card-' + c.id + '"' + cardStyle + '>';
+
+        html += '<div class="admin-candidate-summary" onclick="toggleAdminCard(\'' + jsStr(c.id) + '\')">';
+        html += '<div class="admin-avatar" style="background:' + av.bg + ';color:' + av.color + ';">' + escapeHtml(c.initials || candidateInitials(c.name)) + '</div>';
+        html += '<div class="admin-summary-info">';
+        html += '<div class="admin-summary-name"' + (muted ? ' style="color:#8A8780;"' : '') + '>' + escapeHtml(c.name) + '</div>';
+
+        var metaBits = [];
+        if (c.homeLocation) metaBits.push(escapeHtml(c.homeLocation));
+        else if (c.market) metaBits.push(escapeHtml(c.market));
+        if (c.position) metaBits.push(escapeHtml(c.position));
+        if (muted) metaBits.push(escapeHtml(c.candidateStatus));
+        else if (hasStarted(c)) metaBits.push('Started');
+        else if (c.startDate) metaBits.push('Starts ' + escapeHtml(c.startDate));
+        var coachName = candidateCoach(c);
+        if (coachName) metaBits.push(escapeHtml(coachName));
+        html += '<div class="admin-summary-meta">' + metaBits.join(' &middot; ') + '</div>';
+
+        html += '</div>';
+        if (muted) {
+          var mutedChip = declined ? 'background:#FCEBEB;color:#A32D2D;' : 'background:#FBEEDC;color:#8A5A00;';
+          html += '<span class="admin-count-chip" style="' + mutedChip + '">' + escapeHtml(c.candidateStatus) + '</span>';
+        } else {
+          html += '<span class="admin-count-chip" style="' + countChipStyle(doneCount, TASKS.length) + '">' + doneCount + ' of ' + TASKS.length + '</span>';
+        }
+        html += '<span class="admin-chevron">&#8250;</span>';
+        html += '</div>';
+
+        if (!muted) {
+          html += '<div class="admin-mini-progress">';
+          for (var p = 0; p < TASKS.length; p++) {
+            html += '<div class="admin-mini-seg" style="background:' + segColor(c.tasks[TASKS[p].key]) + ';"></div>';
+          }
+          html += '</div>';
+        }
+
+        html += '<div class="admin-candidate-detail">';
+
+        html += '<div class="admin-order-info">';
+        html += '<div class="admin-order-field"><label>STATUS</label><select onchange="updateOrderField(\'' + jsStr(c.id) + '\', \'CandidateStatus\', \'candidateStatus\', this.value)"><option value="Active"' + (c.candidateStatus === "Active" ? " selected" : "") + '>Active</option><option value="Declined"' + (c.candidateStatus === "Declined" ? " selected" : "") + '>Declined</option><option value="No Show"' + (c.candidateStatus === "No Show" ? " selected" : "") + '>No Show</option><option value="Did Not Start"' + (c.candidateStatus === "Did Not Start" ? " selected" : "") + '>Did Not Start</option><option value="Started"' + (c.candidateStatus === "Started" ? " selected" : "") + '>Started</option></select></div>';
+        html += '<div class="admin-order-field"><label>START DATE</label><input type="text" value="' + escapeAttr(c.startDate || '') + '" placeholder="07/27/2026" onchange="updateOrderField(\'' + jsStr(c.id) + '\', \'StartDate\', \'startDate\', this.value)"></div>';
+        html += '<div class="admin-order-field"><label>SHIRT SIZE</label><input type="text" value="' + escapeAttr(c.shirtSize || '') + '" onchange="updateOrderField(\'' + jsStr(c.id) + '\', \'UniformShirtSize\', \'shirtSize\', this.value)"></div>';
+        html += '<div class="admin-order-field"><label>NAME TAG</label><input type="text" value="' + escapeAttr(c.nameTag || '') + '" onchange="updateOrderField(\'' + jsStr(c.id) + '\', \'NameTag\', \'nameTag\', this.value)"></div>';
+        html += '<div class="admin-order-field"><label>NTID</label><input type="text" value="' + escapeAttr(c.ntid || '') + '" onchange="updateOrderField(\'' + jsStr(c.id) + '\', \'NTID\', \'ntid\', this.value)"></div>';
+        html += '<div class="admin-order-field"><label>T-MOBILE EMAIL</label><input type="text" value="' + escapeAttr(c.tmobileEmail || '') + '" onchange="updateOrderField(\'' + jsStr(c.id) + '\', \'TMobileEmail\', \'tmobileEmail\', this.value)"></div>';
+        html += '</div>';
+
+        html += '<div class="admin-section-label">ONBOARDING TASKS</div>';
+        for (var k = 0; k < TASKS.length; k++) {
+          var task = TASKS[k];
+          var currentVal = c.tasks[task.key];
+          html += '<div class="admin-task-row">';
+          html += '<div class="admin-task-label"><span class="admin-task-dot" style="background:' + segColor(currentVal) + ';"></span>' + escapeHtml(task.label) + '</div>';
+          html += '<select class="admin-task-select" style="' + taskPillStyle(currentVal) + '" onchange="updateTaskStatus(\'' + jsStr(c.id) + '\', \'' + task.key + '\', this.value)">';
+          var blockers = brinksBlockers(c);
+          // if SharePoint holds a value this task doesn't list, show it anyway -
+          // otherwise the select silently displays the wrong status
+          var choiceList = task.choices.slice();
+          if (currentVal && choiceList.indexOf(currentVal) === -1) choiceList.unshift(currentVal);
+          for (var tc = 0; tc < choiceList.length; tc++) {
+            var choice = choiceList[tc];
+            var sel = (choice === currentVal) ? ' selected' : '';
+            var lock = (task.key === 'BrinksCredentials' && choice === 'Requested Creation'
+                        && blockers.length > 0 && choice !== currentVal) ? ' disabled' : '';
+            html += '<option value="' + escapeAttr(choice) + '"' + sel + lock + '>' + escapeHtml(choice) + '</option>';
+          }
+          html += '</select>';
+          html += '</div>';
+        }
+
+        if (c.tasks.BrinksCredentials !== 'Complete') {
+          var bBlock = brinksBlockers(c);
+          if (bBlock.length > 0) {
+            html += '<button class="brinks-send-btn" disabled>Send Brinks request</button>';
+            html += '<div class="brinks-blocked-note">Add the ' + escapeHtml(bBlock.join(' and ')) + ' above before requesting Brinks credentials.</div>';
+          } else {
+            html += '<button class="brinks-send-btn" onclick="sendBrinksRequest(\'' + jsStr(c.id) + '\', \'' + jsStr(c.name) + '\')">Send Brinks request</button>';
+          }
+        }
+
+        html += '<div class="admin-section-label" style="margin-top:16px;">NOTES LOG</div>';
+        html += '<div class="admin-note-row">';
+        html += '<input type="text" class="admin-note-input" id="note-' + escapeAttr(c.id) + '" placeholder="Add a note...">';
+        html += '<button class="admin-note-btn" onclick="addNote(\'' + jsStr(c.id) + '\')">+ Note</button>';
+        html += '</div>';
+        html += '<div class="admin-note-log">' + (c.notes ? escapeHtml(c.notes) : 'No notes yet.') + '</div>';
+
+        html += '</div>';
+        html += '</div>';
+      }
+
+      html += '</div>';
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  function toggleAdminCard(itemId) {
+    var card = document.getElementById('admin-card-' + itemId);
+    if (!card) return;
+    if (card.className.indexOf('expanded') !== -1) {
+      card.className = 'admin-candidate-card';
+    } else {
+      card.className = 'admin-candidate-card expanded';
+    }
+  }
+
+  // PATCH that reports what Microsoft actually said. A choice column rejects
+  // any value not in its choices list, and that comes back as a 400 with an
+  // "invalid" message rather than anything obvious in the UI.
+  function graphPatchFields(itemId, realFields) {
+    return getSiteId().then(function (siteId) {
+      return getListId(siteId).then(function (listId) {
+        var url = "https://graph.microsoft.com/v1.0/sites/" + siteId +
+                  "/lists/" + listId + "/items/" + itemId + "/fields";
+        return fetch(url, {
+          method: "PATCH",
+          headers: {
+            Authorization: "Bearer " + graphToken,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(realFields)
+        }).then(function (res) {
+          if (res.ok) return res.json();
+          return res.text().then(function (body) {
+            var detail = "";
+            try {
+              var p = JSON.parse(body);
+              if (p.error) detail = (p.error.code || "") + ": " + (p.error.message || "");
+            } catch (e) { detail = String(body).slice(0, 300); }
+            var err = new Error("HTTP " + res.status + (detail ? " - " + detail : ""));
+            err.status = res.status;
+            err.detail = detail;
+            throw err;
+          });
+        });
+      });
+    });
+  }
+
+  function writeFailureMessage(err, fieldLabel, value) {
+    var msg = 'Could not save ' + fieldLabel + '.\n\n';
+    if (err.status === 400) {
+      msg += 'SharePoint rejected the value "' + value + '".\n\n' +
+             'This usually means "' + value + '" is not one of the allowed ' +
+             'choices on that column in SharePoint. Open the list settings, ' +
+             'edit the column, and add it to the choices.\n\n';
+    } else if (err.status === 403) {
+      msg += 'Access denied - this account can read the list but not write to it.\n\n';
+    } else if (err.status === 401) {
+      msg += 'Sign-in expired. Use Switch account and sign in again.\n\n';
+    }
+    msg += 'Details: ' + (err.message || String(err));
+    return msg;
+  }
+
+  function updateTaskStatus(itemId, taskKey, newValue) {
+    if (taskKey === 'BrinksCredentials' && newValue === 'Requested Creation') {
+      var blockers = brinksBlockers(findCandidate(itemId));
+      if (blockers.length > 0) {
+        alert('Add the ' + blockers.join(' and ') + ' before requesting Brinks credentials.');
+        renderAdminCandidates();
+        return;
+      }
+    }
+
+    var friendlyFields = {};
+    friendlyFields[taskKey] = newValue;
+    var realFields = toRealFields(friendlyFields);
+
+    if (Object.keys(realFields).length === 0) {
+      alert('This field is not yet connected to SharePoint. Check the Diagnostics tab.');
+      renderAdminCandidates();
+      return;
+    }
+
+    var taskLabel = taskKey;
+    for (var t = 0; t < TASKS.length; t++) {
+      if (TASKS[t].key === taskKey) taskLabel = TASKS[t].label;
+    }
+
+    graphPatchFields(itemId, realFields).then(function () {
+      // update local cache so the UI reflects the change immediately
+      for (var i = 0; i < allCandidates.length; i++) {
+        if (allCandidates[i].id === itemId) {
+          allCandidates[i].tasks[taskKey] = newValue;
+          allCandidates[i].nextStep = computeNextStep(allCandidates[i].tasks);
+        }
+      }
+      renderStats();
+      renderCounts();
+      renderCandidates();
+      renderAdminCandidates();
+    }).catch(function (err) {
+      console.error('Task update failed:', realFields, err);
+      alert(writeFailureMessage(err, taskLabel, newValue));
+      renderAdminCandidates(); // revert dropdown to last known state
+    });
+  }
+
+  function updateOrderField(itemId, friendlyKey, localKey, newValue) {
+    var friendlyFields = {};
+    friendlyFields[friendlyKey] = newValue;
+    var realFields = toRealFields(friendlyFields);
+
+    if (Object.keys(realFields).length === 0) {
+      alert('This column ("' + friendlyKey + '") does not exist in SharePoint yet. Add it, then update FIELD_MAP in the code.');
+      return;
+    }
+
+    getSiteId().then(function (siteId) {
+      return getListId(siteId).then(function (listId) {
+        var url = "https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + listId + "/items/" + itemId + "/fields";
+        return fetch(url, {
+          method: "PATCH",
+          headers: {
+            Authorization: "Bearer " + graphToken,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(realFields)
+        });
+      });
+    }).then(function (res) {
+      if (!res.ok) {
+        return res.text().then(function (body) {
+          var detail = "";
+          try {
+            var p = JSON.parse(body);
+            if (p.error) detail = (p.error.code || "") + ": " + (p.error.message || "");
+          } catch (e) { detail = String(body).slice(0, 300); }
+          var err = new Error("HTTP " + res.status + (detail ? " - " + detail : ""));
+          err.status = res.status;
+          throw err;
+        });
+      }
+      for (var i = 0; i < allCandidates.length; i++) {
+        if (allCandidates[i].id === itemId) {
+          allCandidates[i][localKey] = newValue;
+        }
+      }
+      renderStats();
+      renderCounts();
+      renderCandidates();
+      renderAdminCandidates();
+    }).catch(function (err) {
+      console.error('updateOrderField error:', friendlyKey, newValue, err);
+      alert(writeFailureMessage(err, friendlyKey, newValue));
+      renderAdminCandidates();
+    });
+  }
+
+  function sendBrinksRequest(itemId, candidateName) {
+    var brinksMissing = brinksBlockers(findCandidate(itemId));
+    if (brinksMissing.length > 0) {
+      alert('Add the ' + brinksMissing.join(' and ') + ' before requesting Brinks credentials.');
+      return;
+    }
+
+    // NOTE: this flips the field to "Requested Creation" which the future
+    // Power Automate flow watches for to email the Brinks department.
+    // Actual email sending is not yet wired - that's a later phase.
+    updateTaskStatus(itemId, 'BrinksCredentials', 'Requested Creation');
+    alert('Brinks Credentials set to "Requested Creation" for ' + candidateName + '. Once email automation is built, this will notify the Brinks department automatically.');
+  }
+
+  // ---------------- ADMIN: BACKSHEET (email recipients) ----------------
+  function renderBacksheetRecipients() {
+    var container = document.getElementById('admin-recipients-list');
+    var html = '';
+    for (var i = 0; i < TASKS.length; i++) {
+      var task = TASKS[i];
+      var entry = backsheet[task.key];
+      html += '<div class="backsheet-row">';
+      html += '<div class="task-title">' + task.label + '</div>';
+      html += '<div class="backsheet-field"><label>On complete, notify</label><input type="text" value="' + entry.onCompleteRecipients + '" onchange="updateBacksheetField(\'' + task.key + '\', \'onCompleteRecipients\', this.value)"></div>';
+      html += '<div class="backsheet-field"><label>On overdue, notify</label><input type="text" value="' + entry.onOverdueRecipients + '" onchange="updateBacksheetField(\'' + task.key + '\', \'onOverdueRecipients\', this.value)"></div>';
+      html += '</div>';
+    }
+    html += '<div class="backsheet-save-note">Defaults: "coach,manager". Add specific emails comma-separated to override. Changes save automatically.</div>';
+    container.innerHTML = html;
+  }
+
+  function renderBacksheetThresholds() {
+    var container = document.getElementById('admin-thresholds-list');
+    var html = '';
+    for (var i = 0; i < TASKS.length; i++) {
+      var task = TASKS[i];
+      var entry = backsheet[task.key];
+      html += '<div class="backsheet-row">';
+      html += '<div class="task-title">' + task.label + '</div>';
+      html += '<div class="backsheet-field"><label>Days before overdue reminder</label><input type="number" min="1" value="' + entry.thresholdDays + '" onchange="updateBacksheetField(\'' + task.key + '\', \'thresholdDays\', this.value)"></div>';
+      html += '</div>';
+    }
+    html += '<div class="backsheet-save-note">These power the countdown shown to coaches/managers. Changes save automatically.</div>';
+    container.innerHTML = html;
+  }
+
+  function updateBacksheetField(taskKey, field, value) {
+    backsheet[taskKey][field] = (field === 'thresholdDays') ? parseInt(value, 10) : value;
+    saveBacksheet(backsheet);
+  }
+
+  function runFieldDiagnostic() {
+    var output = document.getElementById('diagnostic-output');
+    var sel = document.getElementById('diagnostic-list-select');
+    var listName = sel && sel.value === 'roster' ? CONFIG.rosterListName : sel && sel.value === 'emailsettings' ? CONFIG.emailSettingsListName : CONFIG.listName;
+    output.textContent = 'Loading ' + listName + '...';
+
+    getSiteId().then(function (siteId) {
+      return findListIdByName(siteId, listName).then(function (listId) {
+        return graphFetch("https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + listId + "/columns");
+      });
+    }).then(function (data) {
+      var lines = ['DISPLAY NAME  ->  INTERNAL NAME', '------------------------------------'];
+      for (var i = 0; i < data.value.length; i++) {
+        var col = data.value[i];
+        if (col.hidden || col.readOnly) continue;
+        lines.push(col.displayName + '  ->  ' + col.name);
+      }
+      output.textContent = lines.join('\n');
+    }).catch(function (err) {
+      console.error(err);
+      output.textContent = 'Could not load field names: ' + err.message;
+    });
+  }
+
+  // Store Roster field map (from freshly created list - names should be clean)
+  var ROSTER_FIELD_MAP = {
+    StoreName: "Title",
+    Market: "field_1",
+    CoachAssigned: "field_2",
+    ManagerAssigned: "field_3",
+    ManagerEmail: "field_4",
+    CoachEmail: "CoachEmail"
+  };
+
+  var cachedRosterListId = null;
+  var storeRosterData = [];
+  var rosterStatus = { state: "loading", message: "", status: 0, url: "" };
+
+  function getRosterListId(siteId) {
+    if (cachedRosterListId) return Promise.resolve(cachedRosterListId);
+    return findListIdByName(siteId, CONFIG.rosterListName).then(function (id) {
+      cachedRosterListId = id;
+      return cachedRosterListId;
+    });
+  }
+
+  function loadStoreRoster() {
+    rosterStatus = { state: "loading", message: "", status: 0, url: "" };
+    renderRosterBanner();
+    getSiteId().then(function (siteId) {
+      return getRosterListId(siteId).then(function (listId) {
+        return graphFetch("https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + listId + "/items?expand=fields&$top=200");
+      });
+    }).then(function (data) {
+      storeRosterData = data.value || [];
+      rosterStatus = {
+        state: storeRosterData.length > 0 ? "ok" : "empty",
+        message: storeRosterData.length + " stores loaded",
+        status: 200, url: ""
+      };
+      populateStoreDropdowns();
+      reapplyStoreSelection();
+      renderRosterBanner();
+    }).catch(function (err) {
+      rosterStatus = {
+        state: "failed",
+        message: err.message || String(err),
+        status: err.status || 0,
+        notVisible: !!err.notVisible,
+        detail: err.detail || "",
+        url: err.url || ""
+      };
+      console.warn('Store Roster load failed, falling back to static list:', err);
+      populateStoreDropdowns();
+      renderRosterBanner();
+    });
+  }
+
+  // the roster loads async - if someone already picked a store, redo the
+  // coach/manager lookup now that real data is here
+  function rosterFailureHint(s, notVisible) {
+    if (notVisible) return "This account could not find a list matching that name. The details below show every list this account can actually see - if the roster is missing from that list it is a permission problem, and if it appears under a different spelling the name in CONFIG needs updating.";
+    if (s === 403) return "Microsoft denied this request. See Failed request below for which call was refused - the site itself, or the list enumeration.";
+    if (s === 401) return "Sign-in expired or not consented. Try Switch account and sign in again.";
+    if (s === 404) return "The Store Roster list was not found under this site.";
+    if (s === 429) return "Microsoft is rate limiting requests. Wait a minute and retry.";
+    if (s >= 500) return "Microsoft Graph is having trouble. Retry shortly.";
+    return "Could not reach the Store Roster list.";
+  }
+
+  function renderRosterBanner() {
+    var el = document.getElementById('roster-banner');
+    if (!el) return;
+    if (rosterStatus.state === 'ok') { el.style.display = 'none'; return; }
+    if (rosterStatus.state === 'loading') {
+      el.style.display = 'block';
+      el.className = 'roster-banner loading';
+      el.innerHTML = '<div class="roster-banner-title">Loading store roster...</div>';
+      return;
+    }
+    el.style.display = 'block';
+    el.className = 'roster-banner';
+    var title = rosterStatus.state === 'empty'
+      ? 'The Store Roster list loaded but is empty.'
+      : rosterFailureHint(rosterStatus.status, rosterStatus.notVisible);
+    el.innerHTML =
+      '<div class="roster-banner-title">Coach and manager may show TBD</div>' +
+      '<div class="roster-banner-body">' + escapeHtml(title) + '</div>' +
+      '<div class="roster-banner-actions">' +
+        '<button type="button" class="roster-retry" onclick="loadStoreRoster()">Retry</button>' +
+        '<button type="button" class="roster-detail-toggle" onclick="toggleRosterDetail()">Show details</button>' +
+      '</div>' +
+      '<div class="roster-banner-detail" id="roster-banner-detail" style="display:none;">' +
+        'Signed in as: ' + escapeHtml(getCurrentUserEmail() || 'unknown') + '\n' +
+        'HTTP status: ' + (rosterStatus.status || 'n/a (no HTTP error - see above)') + '\n' +
+        'Tracker list: ' + (allCandidates.length > 0
+            ? 'OK - ' + allCandidates.length + ' candidates loaded'
+            : 'also failed or empty') + '\n' +
+        'List: ' + escapeHtml(CONFIG.rosterListName) + '\n' +
+        'Site: ' + escapeHtml(CONFIG.sitePath) + '\n' +
+        'Failed request: ' + escapeHtml(rosterStatus.url || 'n/a') + '\n' +
+        'Graph said: ' + escapeHtml(rosterStatus.detail || 'n/a') + '\n' +
+        'Error: ' + escapeHtml(rosterStatus.message) +
+      '</div>';
+  }
+
+  function toggleRosterDetail() {
+    var d = document.getElementById('roster-banner-detail');
+    if (d) d.style.display = (d.style.display === 'none') ? 'block' : 'none';
+  }
+
+  function reapplyStoreSelection() {
+    var sel = document.getElementById('f-location');
+    if (sel && sel.value) onStoreChange(sel.value);
+  }
+
+  function getStoreRosterEntry(storeName) {
+    for (var i = 0; i < storeRosterData.length; i++) {
+      var f = storeRosterData[i].fields || {};
+      var name = f[ROSTER_FIELD_MAP.StoreName] || "";
+      if (name.toUpperCase() === storeName.toUpperCase()) {
+        return {
+          coach: f[ROSTER_FIELD_MAP.CoachAssigned] || "TBD",
+          manager: f[ROSTER_FIELD_MAP.ManagerAssigned] || "TBD",
+          managerEmail: f[ROSTER_FIELD_MAP.ManagerEmail] || "",
+          coachEmail: f[ROSTER_FIELD_MAP.CoachEmail] || ""
+        };
+      }
+    }
+    return null;
+  }
+  var STORE_COACH_MAP = {
+    "MA-KELLEY SQUARE": "Rose Perez",
+    "MA-LOCUST STREET": "Joel Montero",
+    "RI-BALD HILL": "TBD",
+    "MA-SOUTH SHORE MALL": "Rose Perez",
+    "MA-WESTERN AVE": "Rose Perez",
+    "MA-HOLYOKE": "Joel Montero",
+    "TN-WEST MARKET": "Cheryl",
+    "TN-BRISTOL": "Cheryl",
+    "RI-DOUGLAS": "Ambulai Sheku",
+    "RI-COVENTRY": "Ambulai Sheku",
+    "RI-RESERVOIR AVE": "Ambulai Sheku",
+    "TN-MORRISTOWN": "Mr. Watts",
+    "TN-NORTH BROADWAY": "Mr. Watts",
+    "MA-EXCHANGE ST.": "Joel Montero",
+    "MA-STATE STREET": "Joel Montero",
+    "CT-NEW LONDON": "TBD",
+    "CT-NORWICH": "TBD",
+    "AR-COLONEL GLENN": "TBD",
+    "AR-RADIO GEYER": "TBD",
+    "RI-751BROAD": "Rose Perez",
+    "MA-ROCKDALE": "Manny Rivera",
+    "TN-KEITH ST": "Mr. Watts",
+    "TN-SHALLOWFORD RD": "Mr. Watts",
+    "TN-MAGNOLIA": "Mr. Watts",
+    "MA-COGGESHALL": "Manny Rivera",
+    "CT-BUCKLAND HILLS MALL": "TBD",
+    "RI-NEWPORT AVE": "TBD",
+    "RI-EAST PROVIDENCE": "TBD",
+    "RI-PROVIDENCE PLACE MALL": "Rose Perez",
+    "MA-CAPE CODE MALL": "Ambulai Sheku",
+    "MA-FALLRIVER": "Manny Rivera",
+    "RI-BROAD ST": "Rose Perez",
+    "RI-BROADWAY": "Rose Perez",
+    "TN-WESTERN AVE": "Mr. Watts",
+    "RI-HARTFORD AVE": "Rose Perez"
+  };
+
+
+
+
+  function resetAddForm() {
+    var form = document.getElementById('add-candidate-form');
+    if (form) form.reset();
+    document.getElementById('f-coach').innerHTML = '<option value="">Select home store first</option>';
+    document.getElementById('f-manager').innerHTML = '<option value="">Select home store first</option>';
+    document.getElementById('shirtsize-other-group').style.display = 'none';
+    buildAvailabilityGrid(); // reset availability selections
+  }
+
+  function addNote(itemId) {
+    var input = document.getElementById('note-' + itemId);
+    if (!input || !input.value.trim()) return;
+    var noteText = input.value.trim();
+    var now = new Date();
+    var timestamp = (now.getMonth()+1) + '/' + now.getDate() + '/' + now.getFullYear() + ' ' +
+      now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
+    var newEntry = '[' + timestamp + '] ' + noteText;
+
+    // Find current notes for this candidate
+    var candidate = null;
+    for (var i = 0; i < allCandidates.length; i++) {
+      if (allCandidates[i].id === itemId) { candidate = allCandidates[i]; break; }
+    }
+    var existingNotes = candidate ? candidate.notes || '' : '';
+    var updatedNotes = existingNotes ? existingNotes + '\n' + newEntry : newEntry;
+
+    var friendlyFields = { NotesUpdates: updatedNotes };
+    var realFields = toRealFields(friendlyFields);
+
+    getSiteId().then(function(siteId) {
+      return getListId(siteId).then(function(listId) {
+        return fetch("https://graph.microsoft.com/v1.0/sites/" + siteId + "/lists/" + listId + "/items/" + itemId + "/fields", {
+          method: "PATCH",
+          headers: { Authorization: "Bearer " + graphToken, "Content-Type": "application/json" },
+          body: JSON.stringify(realFields)
+        });
+      });
+    }).then(function(res) {
+      if (!res.ok) throw new Error("Note save failed: " + res.status);
+      if (candidate) candidate.notes = updatedNotes;
+      input.value = '';
+      renderAdminCandidates();
+    }).catch(function(err) {
+      console.error(err);
+      alert('Could not save note. Please try again.');
+    });
+  }
+
+  function setupShirtSizeToggle() {
+    var sizeSelect = document.getElementById('f-shirtsize');
+    var otherGroup = document.getElementById('shirtsize-other-group');
+    sizeSelect.addEventListener('change', function () {
+      otherGroup.style.display = (sizeSelect.value === 'Other (note size below)') ? 'flex' : 'none';
+    });
+  }
+
+  function setFilter(filter) {
+    currentFilter = filter;
+    var pills = document.querySelectorAll('.pill');
+    for (var i = 0; i < pills.length; i++) {
+      pills[i].className = 'pill';
+    }
+    var activePill = document.querySelector('.pill[data-filter="' + filter + '"]');
+    if (activePill) {
+      activePill.className = 'pill active ' + filter;
+    }
+    renderCandidates();
+  }
+
+
+  // ---------------- START CALENDAR ----------------
+  var CAL_MONTHS = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+  var calState = { year: 0, month: 0, selected: null };
+  var calFilters = { market: "", coach: "" };
+
+  function setCalFilter(kind, value) {
+    calFilters[kind] = value;
+    calState.selected = null;
+    renderCalendar();
+  }
+
+  function calMatchesFilters(c) {
+    if (calFilters.market && (c.market || "") !== calFilters.market) return false;
+    if (calFilters.coach) {
+      if (calFilters.coach === "__unassigned") {
+        if (candidateCoach(c) !== "") return false;
+      } else if (candidateCoach(c) !== calFilters.coach) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function calPopulateFilters() {
+    var all = getCalendarCandidates();
+    var markets = [], coaches = [], hasUnassigned = false, years = [];
+
+    for (var i = 0; i < all.length; i++) {
+      var mk = all[i].market || "";
+      if (mk && markets.indexOf(mk) === -1) markets.push(mk);
+      var cn = candidateCoach(all[i]);
+      if (!cn) hasUnassigned = true;
+      else if (coaches.indexOf(cn) === -1) coaches.push(cn);
+      var d = calParseStart(all[i].startDate);
+      if (d && years.indexOf(d.getFullYear()) === -1) years.push(d.getFullYear());
+    }
+    markets.sort(); coaches.sort();
+
+    var now = new Date().getFullYear();
+    if (years.indexOf(now) === -1) years.push(now);
+    if (years.indexOf(calState.year) === -1) years.push(calState.year);
+    years.sort();
+
+    var mSel = document.getElementById('cal-market-filter');
+    if (mSel) {
+      var mSig = markets.join('|');
+      if (mSel.getAttribute('data-sig') !== mSig) {
+        mSel.setAttribute('data-sig', mSig);
+        var mh = '<option value="">All markets</option>';
+        for (var m = 0; m < markets.length; m++) {
+          mh += '<option value="' + escapeAttr(markets[m]) + '">' + escapeHtml(markets[m]) + '</option>';
+        }
+        mSel.innerHTML = mh;
+      }
+      mSel.value = calFilters.market;
+      mSel.className = 'cal-filter-select' + (calFilters.market ? ' filtered' : '');
+    }
+
+    var cSel = document.getElementById('cal-coach-filter');
+    if (cSel) {
+      var cSig = coaches.join('|') + (hasUnassigned ? '|__u' : '');
+      if (cSel.getAttribute('data-sig') !== cSig) {
+        cSel.setAttribute('data-sig', cSig);
+        var ch = '<option value="">All coaches</option>';
+        for (var k = 0; k < coaches.length; k++) {
+          ch += '<option value="' + escapeAttr(coaches[k]) + '">' + escapeHtml(coaches[k]) + '</option>';
+        }
+        if (hasUnassigned) ch += '<option value="__unassigned">Unassigned / TBD</option>';
+        cSel.innerHTML = ch;
+      }
+      cSel.value = calFilters.coach;
+      cSel.className = 'cal-filter-select' + (calFilters.coach ? ' filtered' : '');
+    }
+
+    var moSel = document.getElementById('cal-month-select');
+    if (moSel) {
+      if (!moSel.getAttribute('data-built')) {
+        moSel.setAttribute('data-built', '1');
+        var oh = '';
+        for (var mo = 0; mo < 12; mo++) oh += '<option value="' + mo + '">' + CAL_MONTHS[mo] + '</option>';
+        moSel.innerHTML = oh;
+      }
+      moSel.value = String(calState.month);
+    }
+
+    var ySel = document.getElementById('cal-year-select');
+    if (ySel) {
+      var ySig = years.join('|');
+      if (ySel.getAttribute('data-sig') !== ySig) {
+        ySel.setAttribute('data-sig', ySig);
+        var yh = '';
+        for (var y = 0; y < years.length; y++) yh += '<option value="' + years[y] + '">' + years[y] + '</option>';
+        ySel.innerHTML = yh;
+      }
+      ySel.value = String(calState.year);
+    }
+  }
+
+  function calJumpTo(kind, value) {
+    if (kind === 'month') calState.month = parseInt(value, 10);
+    else calState.year = parseInt(value, 10);
+    calState.selected = null;
+    renderCalendar();
+  }
+
+  function calDateKey(y, m, d) {
+    return y + '-' + ('0' + (m + 1)).slice(-2) + '-' + ('0' + d).slice(-2);
+  }
+
+  // start dates are stored as MM/DD/YYYY strings
+  function calParseStart(str) {
+    var p = String(str || '').split('/');
+    if (p.length !== 3) return null;
+    var mo = parseInt(p[0], 10), da = parseInt(p[1], 10), yr = parseInt(p[2], 10);
+    if (!mo || !da || !yr) return null;
+    var d = new Date(yr, mo - 1, da);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  function calBuildIndex() {
+    var index = {};
+    var list = getCalendarCandidates();
+    for (var i = 0; i < list.length; i++) {
+      if (!calMatchesFilters(list[i])) continue;
+      var d = calParseStart(list[i].startDate);
+      if (!d) continue;
+      var key = calDateKey(d.getFullYear(), d.getMonth(), d.getDate());
+      if (!index[key]) index[key] = [];
+      index[key].push(list[i]);
+    }
+    return index;
+  }
+
+  function calShiftMonth(delta) {
+    calState.month += delta;
+    while (calState.month < 0) { calState.month += 12; calState.year--; }
+    while (calState.month > 11) { calState.month -= 12; calState.year++; }
+    calState.selected = null;
+    renderCalendar();
+  }
+
+  function calGoToday() {
+    var now = new Date();
+    calState.year = now.getFullYear();
+    calState.month = now.getMonth();
+    calState.selected = calDateKey(now.getFullYear(), now.getMonth(), now.getDate());
+    renderCalendar();
+  }
+
+  function calSelectDay(key) {
+    calState.selected = (calState.selected === key) ? null : key;
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    var grid = document.getElementById('cal-grid');
+    if (!grid) return;
+
+    if (!calState.year) {
+      var n = new Date();
+      calState.year = n.getFullYear();
+      calState.month = n.getMonth();
+    }
+
+    calPopulateFilters();
+
+    var index = calBuildIndex();
+    var y = calState.year, m = calState.month;
+
+    var today = new Date();
+    var todayKey = calDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+    var firstDay = new Date(y, m, 1).getDay();
+    var daysInMonth = new Date(y, m + 1, 0).getDate();
+
+    var html = '';
+    for (var b = 0; b < firstDay; b++) html += '<div class="cal-day blank"></div>';
+
+    var monthTotal = 0;
+    for (var d = 1; d <= daysInMonth; d++) {
+      var key = calDateKey(y, m, d);
+      var people = index[key] || [];
+      monthTotal += people.length;
+
+      var cls = 'cal-day';
+      if (people.length > 0) cls += ' has-starts';
+      if (key === todayKey) cls += ' today';
+      if (key === calState.selected) cls += ' selected';
+      if (new Date(y, m, d) < new Date(today.getFullYear(), today.getMonth(), today.getDate())) cls += ' past';
+
+      var click = people.length > 0 ? ' onclick="calSelectDay(\'' + key + '\')"' : '';
+      html += '<div class="' + cls + '"' + click + '>';
+      html += '<div class="cal-day-num">' + d + '</div>';
+      if (people.length > 0) html += '<div class="cal-day-count">' + people.length + '</div>';
+      html += '</div>';
+    }
+    grid.innerHTML = html;
+
+    renderCalDayPanel(index, monthTotal);
+  }
+
+  function renderCalDayPanel(index, monthTotal) {
+    var panel = document.getElementById('cal-day-panel');
+    if (!panel) return;
+
+    var html = '';
+
+    if (calState.selected && index[calState.selected]) {
+      var parts = calState.selected.split('-');
+      var dt = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      var people = index[calState.selected];
+      html += '<div class="cal-day-panel-head">' + CAL_MONTHS[dt.getMonth()].toUpperCase() +
+              ' ' + dt.getDate() + ' &middot; ' + people.length +
+              (people.length === 1 ? ' START' : ' STARTS') + '</div>';
+      html += calPeopleHtml(people);
+    } else {
+      var upcoming = calUpcoming(index);
+      html += '<div class="cal-day-panel-head">NEXT 30 DAYS</div>';
+      if (monthTotal === 0 && upcoming.length === 0) {
+        html += '<div class="cal-daycount-note">No start dates entered yet. Once a start date is set on a candidate, they appear here.</div>';
+      } else if (upcoming.length === 0) {
+        html += '<div class="cal-daycount-note">Nobody starts in the next 30 days.</div>';
+      } else {
+        html += calPeopleHtml(upcoming, true);
+      }
+    }
+    panel.innerHTML = html;
+  }
+
+  function calUpcoming(index) {
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    var limit = new Date(today.getTime() + 30 * 86400000);
+    var out = [];
+    for (var key in index) {
+      var p = key.split('-');
+      var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+      if (d >= today && d <= limit) {
+        for (var i = 0; i < index[key].length; i++) {
+          out.push({ date: d, cand: index[key][i] });
+        }
+      }
+    }
+    out.sort(function (a, b) { return a.date - b.date; });
+    var flat = [];
+    for (var j = 0; j < out.length; j++) {
+      out[j].cand._calDate = out[j].date;
+      flat.push(out[j].cand);
+    }
+    return flat;
+  }
+
+  function calPeopleHtml(people, showDate) {
+    var html = '';
+    for (var i = 0; i < people.length; i++) {
+      var c = people[i];
+      var av = avatarColors(c);
+      var bits = [];
+      if (c.position) bits.push(escapeHtml(c.position));
+      if (c.homeLocation) bits.push(escapeHtml(c.homeLocation));
+      if (showDate && c._calDate) {
+        bits.unshift(CAL_MONTHS[c._calDate.getMonth()].slice(0, 3) + ' ' + c._calDate.getDate());
+      }
+      html += '<div class="cal-person">';
+      html += '<div class="admin-avatar" style="background:' + av.bg + ';color:' + av.color + ';">' +
+              escapeHtml(c.initials || candidateInitials(c.name)) + '</div>';
+      html += '<div class="cal-person-info">';
+      html += '<div class="cal-person-name">' + escapeHtml(c.name) + '</div>';
+      html += '<div class="cal-person-meta">' + bits.join(' &middot; ') + '</div>';
+      html += '</div>';
+      html += '<span class="admin-count-chip" style="' +
+              countChipStyle(taskCompleteCount(c), TASKS.length) + '">' +
+              taskCompleteCount(c) + ' of ' + TASKS.length + '</span>';
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function goToView(viewName) {
+    var views = document.querySelectorAll('.view');
+    for (var i = 0; i < views.length; i++) {
+      views[i].className = 'view';
+    }
+    document.getElementById('view-' + viewName).className = 'view active';
+
+    if (viewName === 'calendar') renderCalendar();
+
+    var navItems = document.querySelectorAll('.nav-item');
+    for (var j = 0; j < navItems.length; j++) {
+      navItems[j].className = 'nav-item';
+      if (navItems[j].getAttribute('data-nav') === viewName) {
+        navItems[j].className = 'nav-item active';
+      }
+    }
+  }
+
+  // ---------------- INIT ----------------
+  setupShirtSizeToggle();
+  initMsal().then(function () {
+    // Try silent sign-in first (returning visit); fall back to sign-in screen.
+    return getTokenSilent().then(function () {
+      onSignedIn();
+    }).catch(function () {
+      // sign-in screen stays visible, user clicks "Sign in"
+    });
+  }).catch(function (err) {
+    console.error('MSAL init failed:', err);
+    document.getElementById('signin-error').textContent = 'Could not initialize sign-in. Please refresh the page.';
+    document.getElementById('signin-error').style.display = 'block';
+  });
+
+</script>
+
+</body>
+</html>
