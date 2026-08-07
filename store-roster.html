@@ -609,6 +609,7 @@ table.sheet .flagpill{margin:0 auto;}
     <div class="modal-foot">
       <button class="btn btn-soft" id="signBtn" onclick="spSignIn()">Sign in</button>
       <button class="btn btn-soft" onclick="provisionLists()">Set up lists</button>
+      <button class="btn btn-soft" onclick="cleanupDups()">Clean up duplicates</button>
       <button class="btn btn-soft" onclick="closeModal('setScrim')">Close</button>
       <button class="btn btn-primary" onclick="saveSettings()">Save settings</button>
     </div>
@@ -2189,10 +2190,7 @@ function pushAllRoster(){
   _syncFails=0; setSync("Publishing\u2026");
   getToken().then(function(t){
     return resolveSite(t).then(function(){ return ensureCols(t); }).then(function(){ return pushStores(t); }).then(function(){
-      return chainEach(live,function(e){ var fields=filt(empToFields(e),_peopleCols), id=_spById[e.id];
-        if(id) return graph("/sites/"+siteId+"/lists/"+listId+"/items/"+id+"/fields",t,"PATCH",fields);
-        return graph("/sites/"+siteId+"/lists/"+listId+"/items",t,"POST",{fields:fields}).then(function(it){ _spById[e.id]=it.id; });
-      });
+      return peopleIndex(t).then(function(pidx){ return chainEach(live,function(e){ return upsertEmp(t,e,pidx); }); });
     }).then(function(){ rebuildSnap(); rebuildStoreSnap(); setSyncOK(); flashSync(_syncFails?("Published \u00b7 "+_syncFails+" skipped"):"Published to SharePoint"); });
   }).catch(function(e){ setSyncErr(); alert("Publish failed: "+e.message); });
 }
@@ -2206,13 +2204,12 @@ function pushDirty(){
       for(i=0;i<DATA.employees.length;i++){ e=DATA.employees[i]; present[e.id]=1; if(e.open) continue; cur=JSON.stringify(filt(empToFields(e),_peopleCols)); if(cur!==_snap[e.id]) ops.push(e); }
       if(CFG.allowDelete){ for(k in _snap){ if(_snap.hasOwnProperty(k) && !present[k] && _spById[k]) dels.push(k); } }
       if(CFG.storeList && _storeCols){ for(i=0;i<DATA.stores.length;i++){ s=DATA.stores[i]; cur=JSON.stringify(storeToFields(s)); if(cur!==_storeSnap[s.id]) sops.push(s); } }
-      return chainEach(sops,function(st){ if(!st._storeId) st._storeId="S"+Math.random().toString(36).slice(2,9); var fields=storeToFields(st), id=_storeById[st.id];
-        if(id) return graph("/sites/"+siteId+"/lists/"+_storeListId+"/items/"+id+"/fields",t,"PATCH",fields);
-        return graph("/sites/"+siteId+"/lists/"+_storeListId+"/items",t,"POST",{fields:fields}).then(function(it){ _storeById[st.id]=it.id; });
+      var sidx=null,pidx=null;
+      return (sops.length?storeIndex(t):Promise.resolve(null)).then(function(si){ sidx=si;
+        return chainEach(sops,function(st){ return upsertStore(t,st,sidx); });
       }).then(function(){
-        return chainEach(ops,function(em){ var fields=filt(empToFields(em),_peopleCols);
-          if(_spById[em.id]) return graph("/sites/"+siteId+"/lists/"+listId+"/items/"+_spById[em.id]+"/fields",t,"PATCH",fields);
-          return graph("/sites/"+siteId+"/lists/"+listId+"/items",t,"POST",{fields:fields}).then(function(it){ _spById[em.id]=it.id; });
+        return (ops.length?peopleIndex(t):Promise.resolve(null)).then(function(pi){ pidx=pi;
+          return chainEach(ops,function(em){ return upsertEmp(t,em,pidx); });
         });
       }).then(function(){ return chainEach(dels,function(kk){ return graph("/sites/"+siteId+"/lists/"+listId+"/items/"+_spById[kk],t,"DELETE").then(function(){ delete _spById[kk]; }); }); })
         .then(function(){ rebuildSnap(); rebuildStoreSnap(); if(_syncFails){ setSyncErr(); flashSync(_syncFails+" record(s) failed to sync"); } else { setSyncOK(); flashSync("Synced to SharePoint"); } });
@@ -2249,11 +2246,40 @@ function pullStores(t){ if(!CFG.storeList) return Promise.resolve();
       for(var i=0;i<items.length;i++){ var st=fieldsToStore(items[i].fields); var merged=mergeStore(st); _storeById[merged.id]=items[i].id; }
     }); });
 }
-function pushStores(t){ if(!CFG.storeList || !_storeCols) return Promise.resolve();
-  return chainEach(DATA.stores,function(st){ if(!st._storeId) st._storeId="S"+Math.random().toString(36).slice(2,9); var fields=storeToFields(st), id=_storeById[st.id];
-    if(id) return graph("/sites/"+siteId+"/lists/"+_storeListId+"/items/"+id+"/fields",t,"PATCH",fields);
-    return graph("/sites/"+siteId+"/lists/"+_storeListId+"/items",t,"POST",{fields:fields}).then(function(it){ _storeById[st.id]=it.id; }); });
+function storeIndex(t){ return readAllItems(t,"/sites/"+siteId+"/lists/"+_storeListId+"/items?expand=fields&$top=500").then(function(items){ var idx={byStoreId:{},byName:{}},i,sc=storeColIntl("_storeId"),nc=storeColIntl("name"); for(i=0;i<items.length;i++){ var f=items[i].fields||{}; var sv=sc?f[sc]:"",nv=nc?f[nc]:""; if(sv) idx.byStoreId[sv]=items[i].id; if(nv) idx.byName[(""+nv).toLowerCase()]=items[i].id; } return idx; }); }
+function upsertStore(t,st,idx){ if(!st._storeId) st._storeId="S"+Math.random().toString(36).slice(2,9); var fields=storeToFields(st);
+  var target=idx.byStoreId[st._storeId] || idx.byName[(st.name||"").toLowerCase()] || _storeById[st.id] || null;
+  if(target){ _storeById[st.id]=target; idx.byStoreId[st._storeId]=target; idx.byName[(st.name||"").toLowerCase()]=target; return graph("/sites/"+siteId+"/lists/"+_storeListId+"/items/"+target+"/fields",t,"PATCH",fields); }
+  return graph("/sites/"+siteId+"/lists/"+_storeListId+"/items",t,"POST",{fields:fields}).then(function(it){ _storeById[st.id]=it.id; idx.byStoreId[st._storeId]=it.id; idx.byName[(st.name||"").toLowerCase()]=it.id; }); }
+function peopleIndex(t){ return readAllItems(t,"/sites/"+siteId+"/lists/"+listId+"/items?expand=fields&$top=500").then(function(items){ var idx={byNtid:{},byHub:{}},i; for(i=0;i<items.length;i++){ var f=items[i].fields||{}; if(f.NTID) idx.byNtid[(""+f.NTID).toUpperCase()]=items[i].id; if(f.HubId) idx.byHub[f.HubId]=items[i].id; } return idx; }); }
+function upsertEmp(t,em,idx){ var fields=filt(empToFields(em),_peopleCols);
+  var target=_spById[em.id] || (em.ntid?idx.byNtid[(""+em.ntid).toUpperCase()]:null) || (em.hubId?idx.byHub[em.hubId]:null) || null;
+  if(target){ _spById[em.id]=target; return graph("/sites/"+siteId+"/lists/"+listId+"/items/"+target+"/fields",t,"PATCH",fields); }
+  return graph("/sites/"+siteId+"/lists/"+listId+"/items",t,"POST",{fields:fields}).then(function(it){ _spById[em.id]=it.id; if(em.ntid) idx.byNtid[(""+em.ntid).toUpperCase()]=it.id; if(em.hubId) idx.byHub[em.hubId]=it.id; }); }
+function cleanupDups(){
+  if(!account){ setStatus("Sign in first.","bad"); return; }
+  setSync("Scanning for duplicates\u2026");
+  getToken().then(function(t){ return resolveSite(t).then(function(){ return ensureCols(t); }).then(function(){
+    var dels=[],report={stores:0,people:0};
+    function planStores(){ if(!CFG.storeList || !_storeListId) return Promise.resolve();
+      return readAllItems(t,"/sites/"+siteId+"/lists/"+_storeListId+"/items?expand=fields&$top=500").then(function(items){ var nc=storeColIntl("name"),sc=storeColIntl("_storeId"),groups={},i;
+        for(i=0;i<items.length;i++){ var f=items[i].fields||{}; var nm=(nc?(""+(f[nc]||"")):"").toLowerCase(); if(!nm) continue; (groups[nm]=groups[nm]||[]).push({id:items[i].id,hasSid:!!(sc&&f[sc])}); }
+        var nm2; for(nm2 in groups){ if(!groups.hasOwnProperty(nm2))continue; var a=groups[nm2]; if(a.length<=1) continue; var keep=0,j; for(j=0;j<a.length;j++){ if(a[j].hasSid){ keep=j; break; } } for(j=0;j<a.length;j++){ if(j!==keep){ dels.push({list:_storeListId,id:a[j].id}); report.stores++; } } }
+      }); }
+    function planPeople(){ return resolveList(t).then(function(){ return readAllItems(t,"/sites/"+siteId+"/lists/"+listId+"/items?expand=fields&$top=500"); }).then(function(items){ var groups={},i;
+        for(i=0;i<items.length;i++){ var f=items[i].fields||{}; var key=f.NTID?("N:"+(""+f.NTID).toUpperCase()):(f.HubId?("H:"+f.HubId):("T:"+(f.Title||"")+":"+(i))); (groups[key]=groups[key]||[]).push(items[i].id); }
+        var k; for(k in groups){ if(!groups.hasOwnProperty(k))continue; if(k.charAt(0)==="T") continue; var a=groups[k]; if(a.length<=1) continue; for(var j=1;j<a.length;j++){ dels.push({list:listId,id:a[j]}); report.people++; } }
+      }); }
+    return planStores().then(planPeople).then(function(){
+      if(!dels.length){ setSyncOK(); alert("No duplicate rows found."); return; }
+      if(!confirm("Found duplicates: "+report.stores+" store row(s) and "+report.people+" people row(s). Delete the extras, keeping one of each?")){ setSyncOK(); return; }
+      setSync("Removing duplicates\u2026");
+      return chainEach(dels,function(d){ return graph("/sites/"+siteId+"/lists/"+d.list+"/items/"+d.id,t,"DELETE"); }).then(function(){ _storeById={}; _spById={}; setSyncOK(); alert("Removed "+dels.length+" duplicate row(s). Now click Pull roster to re-sync cleanly."); });
+    });
+  }); }).catch(function(e){ setSyncErr(); alert("Cleanup failed: "+e.message); });
 }
+function pushStores(t){ if(!CFG.storeList || !_storeCols) return Promise.resolve();
+  return storeIndex(t).then(function(idx){ return chainEach(DATA.stores,function(st){ return upsertStore(t,st,idx); }); }); }
 function rebuildStoreSnap(){ _storeSnap={}; for(var i=0;i<DATA.stores.length;i++){ var s=DATA.stores[i]; _storeSnap[s.id]=JSON.stringify(storeToFields(s)); } }
 function colDef(name,type,opts){ opts=opts||{}; var d={name:name}; if(type==="text"){ d.text={allowMultipleLines:!!opts.multi}; } else if(type==="number"){ d.number={}; } else if(type==="boolean"){ d.boolean={}; } else if(type==="date"){ d.dateTime={format:"dateOnly"}; } else if(type==="choice"){ d.choice={choices:opts.choices||[],displayAs:"dropDownMenu"}; } if(opts.hidden) d.hidden=true; return d; }
 function peopleColDefs(){ return [colDef("NTID","text"),colDef("Store","text"),colDef("Status","choice",{choices:["FT","PT"]}),colDef("StartDate","date"),colDef("Birthday","date"),colDef("Phone","text"),colDef("Email","text"),colDef("Role","text"),colDef("Hours","number"),colDef("PayRate","number"),colDef("Perf","choice",{choices:["none","green","yellow","red"]}),colDef("Retention","choice",{choices:["none","green","yellow","red"]}),colDef("Replace","choice",{choices:["none","green","yellow","red"]}),colDef("Attendance","choice",{choices:["none","green","yellow","red"]}),colDef("Stage","text"),colDef("Notes","text",{multi:true}),colDef("Pending","boolean"),colDef("Separated","boolean"),colDef("SepType","choice",{choices:["Terminated","Quit","Did not start","Other"]}),colDef("SepDate","date"),colDef("SepReason","text",{multi:true}),colDef("HubId","text"),colDef("Stores","text",{multi:true}),colDef("Availability","text",{multi:true})]; }
