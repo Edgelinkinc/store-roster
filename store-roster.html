@@ -590,7 +590,7 @@ table.sheet .flagpill{margin:0 auto;}
             <div class="mrow"><label>Start date column</label><select id="cfgHubStart"></select></div>
             <div class="mrow"><label>Store / location column</label><select id="cfgHubStore"></select></div>
             <div class="mrow"><label>"Started" column</label><select id="cfgHubStarted"></select></div>
-            <div class="mrow"><label>"Started" means this value <span style="color:var(--muted)">(blank = a Yes / date counts)</span></label><input type="text" id="cfgHubStartedVal" placeholder="e.g. Started"></div>
+            <div class="mrow"><label>"Started" means this value <span style="color:var(--muted)">(exact match; for a Yes/No column leave blank)</span></label><input type="text" id="cfgHubStartedVal" placeholder="Started"></div>
             <button class="btn btn-primary" id="pullHubBtn" onclick="pullNewHires()">Pull New Hires</button>
           </div>
         </div>
@@ -2327,34 +2327,37 @@ function loadHubCols(){
   CFG.hubList=name; setStatus("Loading Hub columns\u2026","info");
   getToken().then(function(t){ return resolveSite(t).then(function(){ return resolveListByName(t,name); }).then(function(r){ if(!r.exists){ setStatus("Hub list '"+name+"' not found on this site.","bad"); return; } _hubListId=r.id; return listColumns(t,r.id).then(function(m){ hubColsCache=m; populateHubSelects(m); document.getElementById("hubMapRows").style.display=""; setStatus("Loaded "+m.cols.length+" columns \u2014 map the four fields, then Save settings.","ok"); }); }); }).catch(function(e){ setStatus("Load failed: "+e.message,"bad"); });
 }
-function hubStartedFlag(raw){ if(raw==null||raw==="") return false; if(CFG.hubStartedVal){ return (""+raw).toLowerCase()===(""+CFG.hubStartedVal).toLowerCase(); } if(raw===true) return true; var s=(""+raw).toLowerCase(); if(s==="yes"||s==="true"||s==="1") return true; if(/^\d{4}-\d{2}-\d{2}/.test(s)) return true; return false; }
+function hubStartedFlag(raw){ if(raw==null||raw==="") return false; if(CFG.hubStartedVal){ return (""+raw).toLowerCase()===(""+CFG.hubStartedVal).toLowerCase(); } if(raw===true) return true; var s=(""+raw).toLowerCase(); return (s==="yes"||s==="true"||s==="1"); }
 function empByHub(hubId){ for(var i=0;i<DATA.employees.length;i++){ if(DATA.employees[i].hubId===hubId) return DATA.employees[i]; } return null; }
 function pullNewHires(silent){
   if(!account){ if(!silent) setStatus("Sign in first.","bad"); return; }
   if(!CFG.hubList || !CFG.hubName){ if(!silent) setStatus("Load the Hub columns and map them first.","bad"); return; }
   setSync("Reading Hub\u2026");
   getToken().then(function(t){ return resolveSite(t).then(function(){ return resolveListByName(t,CFG.hubList); }).then(function(r){ if(!r.exists) throw new Error("Hub list not found."); return readAllItems(t,"/sites/"+siteId+"/lists/"+r.id+"/items?expand=fields&$top=500"); }).then(function(items){
-    var addedP=0,activated=0,i;
+    var addedP=0,activated=0,reverted=0,i;
     for(i=0;i<items.length;i++){ var f=items[i].fields||{}, hubId=items[i].id;
       var nm=(f[CFG.hubName]||"")+""; var sd=f[CFG.hubStart]?(""+f[CFG.hubStart]).slice(0,10):""; var storeName=(CFG.hubStore?(f[CFG.hubStore]||""):"")+"";
       var started=hubStartedFlag(CFG.hubStarted?f[CFG.hubStarted]:"");
       if(!nm.replace(/\s/g,"")) continue;
-      if(!sd && !started) continue;
       var sid=storeName?storeIdByName(storeName):"";
       var e=empByHub(hubId);
       if(!e){
+        if(!sd && !started) continue;
         e={id:uid(),ntid:"",name:nm,stores:sid?[sid]:[],phone:"",email:"",birthday:"",role:"Retail Sales Rep",status:"FT",payRate:0,open:false,pending:!started,stage:((DATA.onboardSteps&&DATA.onboardSteps[0])||""),termed:false,termType:"",termDate:"",termReason:"",hoursByStore:{},hoursAuto:true,startDate:sd,flags:{performance:"",retention:"",replace:"",attendance:""},notes:"",hubId:hubId,offboard:{}};
         if(started){ e.pending=false; if(sid){ e.hoursByStore[sid]=defaultHours("FT"); } activated++; } else { addedP++; }
         DATA.employees.push(e);
       } else {
         if(nm) e.name=nm; if(sd) e.startDate=sd;
         if(sid && empStores(e).indexOf(sid)<0){ var sl=empStores(e).slice(); sl.unshift(sid); e.stores=sl; }
-        if(started && e.pending){ e.pending=false; if(empTotalHours(e)===0 && sid){ e.hoursByStore=e.hoursByStore||{}; e.hoursByStore[sid]=defaultHours(e.status||"FT"); } activated++; }
+        if(!e.termed){
+          if(started){ if(e.pending){ e.pending=false; if(empTotalHours(e)===0 && sid){ e.hoursByStore=e.hoursByStore||{}; e.hoursByStore[sid]=defaultHours(e.status||"FT"); } activated++; } }
+          else { if(!e.pending){ e.pending=true; reverted++; } }
+        }
       }
     }
-    if(addedP||activated){ saveData(); fillSelects(); renderLegend(); render(); }
-    setSyncOK(); flashSync(silent?((addedP||activated)?("Hub: +"+addedP+" pending, "+activated+" active"):"Hub up to date"):"Hub synced");
-    if(!silent) alert("New Hire Hub sync:\n"+addedP+" new pending hire(s)\n"+activated+" moved to active.");
+    if(addedP||activated||reverted){ saveData(); fillSelects(); renderLegend(); render(); }
+    setSyncOK(); flashSync(silent?((addedP||activated||reverted)?("Hub: +"+addedP+"p "+activated+"a "+reverted+"\u21a9"):"Hub up to date"):"Hub synced");
+    if(!silent) alert("New Hire Hub sync:\n"+addedP+" new pending\n"+activated+" moved to active\n"+reverted+" moved back to pending.");
   }); }).catch(function(e){ setSyncErr(); if(!silent) alert("Hub pull failed: "+e.message); });
 }
 function setSync(msg){ var d=document.getElementById("syncDot"); d.className="syncdot on"; document.getElementById("syncTxt").textContent=msg; }
