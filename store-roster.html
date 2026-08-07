@@ -585,6 +585,7 @@ table.sheet .flagpill{margin:0 auto;}
           <div class="note">Point at your Hub list and map its columns. Hires with a start date show as <b>pending</b> at their location; when the Hub marks them started, they auto-add as <b>active</b>.</div>
           <div class="mrow"><label>New Hire Hub list name</label><input type="text" id="cfgHubList" placeholder="EdgeLink Inc New Hire Onboarding"></div>
           <button class="btn btn-soft" onclick="loadHubCols()">Load Hub columns</button>
+          <button class="btn btn-soft" onclick="hubDebug()">Debug Hub</button>
           <div id="hubMapRows" style="display:none;margin-top:8px">
             <div class="mrow"><label>Name column</label><select id="cfgHubName"></select></div>
             <div class="mrow"><label>Start date column</label><select id="cfgHubStart"></select></div>
@@ -2321,6 +2322,15 @@ function selVal(id){ var el=document.getElementById(id); return el?el.value:""; 
 function setSavedOpt(id,val){ var el=document.getElementById(id); if(el){ el.innerHTML="<option value='"+X(val)+"' selected>"+X(val)+"</option>"; } }
 function hubColOptions(cols,sel){ var o="<option value=''>\u2014</option>",i; for(i=0;i<cols.length;i++){ o+="<option value='"+X(cols[i].name)+"'"+(cols[i].name===sel?" selected":"")+">"+X(cols[i].displayName)+"</option>"; } return o; }
 function populateHubSelects(m){ document.getElementById("cfgHubName").innerHTML=hubColOptions(m.cols,CFG.hubName); document.getElementById("cfgHubStart").innerHTML=hubColOptions(m.cols,CFG.hubStart); document.getElementById("cfgHubStore").innerHTML=hubColOptions(m.cols,CFG.hubStore); document.getElementById("cfgHubStarted").innerHTML=hubColOptions(m.cols,CFG.hubStarted); }
+function hubDebug(){
+  if(!account){ setStatus("Sign in first.","bad"); return; }
+  var name=(document.getElementById("cfgHubList").value.trim())||CFG.hubList; if(!name){ setStatus("Enter the Hub list name first.","bad"); return; }
+  setStatus("Reading Hub rows\u2026","info");
+  getToken().then(function(t){ return resolveSite(t).then(function(){ return resolveListByName(t,name); }).then(function(r){ if(!r.exists) throw new Error("Hub list not found."); return readAllItems(t,"/sites/"+siteId+"/lists/"+r.id+"/items?expand=fields&$top=8"); }).then(function(items){
+    var out="",i,k; for(i=0;i<items.length;i++){ out+="=== Row "+(i+1)+" ===\n"; var f=items[i].fields||{}; for(k in f){ if(f.hasOwnProperty(k) && k.charAt(0)!=="@" && k!=="ContentType" && k!=="Attachments" && k!=="Edit" && k!=="LinkTitleNoMenu" && k!=="LinkTitle" && k!=="ItemChildCount" && k!=="FolderChildCount"){ out+=k+" = "+JSON.stringify(f[k])+"\n"; } } out+="\n"; }
+    setStatus("","info"); showExport("Hub raw fields (first rows)","hub-debug.txt",out);
+  }); }).catch(function(e){ setStatus("Hub read failed: "+e.message,"bad"); });
+}
 function loadHubCols(){
   if(!account){ setStatus("Sign in first.","bad"); return; }
   var name=document.getElementById("cfgHubList").value.trim(); if(!name){ setStatus("Enter the Hub list name.","bad"); return; }
