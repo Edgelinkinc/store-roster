@@ -631,7 +631,7 @@ var UI={collapsed:{}};
 var msalApp=null, account=null, siteId="", listId="", spItemId="";
 var _spById={}, _snap={}, _pushTimer=null;
 var _peopleCols=null, _storeCols=null, _storeListId="", _storeById={}, _storeSnap={};
-var _hubListId="", hubColsCache=null;
+var _hubListId="", hubColsCache=null, _dirtyStore={};
 var STORE_MAP={ name:"Store Name", state:"Market", coach:"Coach Assigned", manager:"Manager Assigned", managerEmail:"Manager Email", coachEmail:"Coach Email", storeEmail:"Store Email", me:"Coverage", tier:"Tier", target:"Target", hoursBudget:"HoursBudget", laborBudget:"LaborBudget", storeStatus:"StoreStatus", _storeId:"StoreId" };
 
 /* ---------- Seed roster ---------- */
@@ -1251,7 +1251,7 @@ function sStoreField(sid,ri,field,el){
   else if(field==="budget"){ st.hoursBudget=parseInt(el.value,10)||0; updStoreDerived(st,ri); }
   else if(field==="lbudget"){ st.laborBudget=parseInt(el.value,10)||0; updStoreDerived(st,ri); }
   else if(field==="status"){ st.storeStatus=el.value; }
-  saveData(); fillSelects();
+  _dirtyStore[st.id]=1; saveData(); fillSelects();
 }
 function updStoreDerived(st,ri){
   var rc=realCount(st.id),t=st.target||0,shrt=rc<t,al=storeAllocated(st.id),bu=Number(st.hoursBudget)||0,over=(bu>0&&al>bu);
@@ -1262,12 +1262,12 @@ function updStoreDerived(st,ri){
 }
 function sStoreMgr(sid,el){
   var st=storeById(sid); if(!st) return;
-  if(el.value==="__other__"){ var n=prompt("Manager name (not in roster):"); if(n===null){ el.value=st.manager||""; return; } st.manager=n.trim(); saveData(); renderSheet(); return; }
-  st.manager=el.value; saveData();
+  if(el.value==="__other__"){ var n=prompt("Manager name (not in roster):"); if(n===null){ el.value=st.manager||""; return; } st.manager=n.trim(); _dirtyStore[st.id]=1; saveData(); renderSheet(); return; }
+  st.manager=el.value; _dirtyStore[st.id]=1; saveData();
 }
 function sheetAddStore(){
   var st={id:uid(),name:"NEW STORE",state:(uniqueStates()[0]||"RI"),coach:DATA.coaches[0],me:"2ME",tier:"",target:2,hoursBudget:0,laborBudget:0,storeStatus:"Active",storeEmail:"",coachEmail:"",managerEmail:"",_storeId:"",manager:""};
-  DATA.stores.push(st); saveData(); fillSelects(); renderSheet();
+  DATA.stores.push(st); _dirtyStore[st.id]=1; saveData(); fillSelects(); renderSheet();
 }
 function sheetDeleteStore(sid){ editStoreId=sid; deleteStore(); if(UI.view==="sheet") renderSheet(); }
 function sRepField(eid,ri,field,el){
@@ -1720,6 +1720,7 @@ function saveStore(){
   }else{
     obj.id=uid(); obj._storeId=""; DATA.stores.push(obj);
   }
+  _dirtyStore[editStoreId||obj.id]=1;
   saveData(); fillSelects(); render(); closeModal("storeScrim");
 }
 function deleteStore(){
@@ -2203,7 +2204,7 @@ function pushDirty(){
       var ops=[],present={},dels=[],sops=[],i,e,cur,k,s;
       for(i=0;i<DATA.employees.length;i++){ e=DATA.employees[i]; present[e.id]=1; if(e.open) continue; cur=JSON.stringify(filt(empToFields(e),_peopleCols)); if(cur!==_snap[e.id]) ops.push(e); }
       if(CFG.allowDelete){ for(k in _snap){ if(_snap.hasOwnProperty(k) && !present[k] && _spById[k]) dels.push(k); } }
-      if(CFG.storeList && _storeCols){ for(i=0;i<DATA.stores.length;i++){ s=DATA.stores[i]; cur=JSON.stringify(storeToFields(s)); if(cur!==_storeSnap[s.id]) sops.push(s); } }
+      if(CFG.storeList && _storeCols){ for(i=0;i<DATA.stores.length;i++){ s=DATA.stores[i]; if(_dirtyStore[s.id]) sops.push(s); } }
       var sidx=null,pidx=null;
       return (sops.length?storeIndex(t):Promise.resolve(null)).then(function(si){ sidx=si;
         return chainEach(sops,function(st){ return upsertStore(t,st,sidx); });
@@ -2212,7 +2213,7 @@ function pushDirty(){
           return chainEach(ops,function(em){ return upsertEmp(t,em,pidx); });
         });
       }).then(function(){ return chainEach(dels,function(kk){ return graph("/sites/"+siteId+"/lists/"+listId+"/items/"+_spById[kk],t,"DELETE").then(function(){ delete _spById[kk]; }); }); })
-        .then(function(){ rebuildSnap(); rebuildStoreSnap(); if(_syncFails){ setSyncErr(); flashSync(_syncFails+" record(s) failed to sync"); } else { setSyncOK(); flashSync("Synced to SharePoint"); } });
+        .then(function(){ rebuildSnap(); rebuildStoreSnap(); _dirtyStore={}; if(_syncFails){ setSyncErr(); flashSync(_syncFails+" record(s) failed to sync"); } else { setSyncOK(); flashSync("Synced to SharePoint"); } });
     });
   }).catch(function(e){ setSyncErr(); });
 }
