@@ -2156,7 +2156,7 @@ function pullRoster(){
   setSync("Loading roster\u2026");
   getToken().then(function(t){
     return resolveSite(t).then(function(){ return pullStores(t); }).then(function(){ return resolveList(t); }).then(function(){
-      return listColumns(t,listId).then(function(m){ _peopleCols=m.internal; return readAllItems(t,"/sites/"+siteId+"/lists/"+listId+"/items?expand=fields&$top=200"); });
+      return listColumns(t,listId).then(function(m){ _peopleCols=m.writable; return readAllItems(t,"/sites/"+siteId+"/lists/"+listId+"/items?expand=fields&$top=200"); });
     }).then(function(items){
       if(!items.length){ lsSet(LS_DATA,DATA); fillSelects(); renderLegend(); render(); setSyncOK(); alert("Store list loaded, but the employee list is empty. Use 'Publish all' to push the current people in."); return; }
       if(!confirm("Load "+items.length+" people from SharePoint? This replaces the on-screen roster.")){ setSyncOK(); return; }
@@ -2202,15 +2202,19 @@ function pushDirty(){
   }).catch(function(e){ setSyncErr(); });
 }
 /* ---------- Column discovery + provisioning + store sync ---------- */
-function listColumns(t,lid){ return graph("/sites/"+siteId+"/lists/"+lid+"/columns",t).then(function(r){ var m={internal:{},byDisplay:{},cols:[]}; (r.value||[]).forEach(function(c){ if(c.readOnly||c.hidden) { m.internal[c.name]=true; if(c.displayName) m.byDisplay[c.displayName.toLowerCase()]=c.name; return; } m.internal[c.name]=true; if(c.displayName) m.byDisplay[c.displayName.toLowerCase()]=c.name; m.cols.push({name:c.name,displayName:c.displayName||c.name}); }); return m; }); }
+function listColumns(t,lid){ return graph("/sites/"+siteId+"/lists/"+lid+"/columns",t).then(function(r){ var m={internal:{},byDisplay:{},cols:[],writable:{}}; (r.value||[]).forEach(function(c){ m.internal[c.name]=true; if(c.readOnly) return; m.writable[c.name]=true; if(c.displayName) m.byDisplay[c.displayName.toLowerCase()]=c.name; if(!c.hidden) m.cols.push({name:c.name,displayName:c.displayName||c.name}); }); return m; }); }
 function resolveListByName(t,name){ return graph("/sites/"+siteId+"/lists?$filter=displayName eq '"+name+"'",t).then(function(r){ if(!r.value||!r.value.length) return {id:null,exists:false}; return {id:r.value[0].id,exists:true}; }); }
 function ensureCols(t){ var p=Promise.resolve();
-  if(!_peopleCols){ p=p.then(function(){ return resolveList(t); }).then(function(){ return listColumns(t,listId); }).then(function(m){ _peopleCols=m.internal; }); }
+  if(!_peopleCols){ p=p.then(function(){ return resolveList(t); }).then(function(){ return listColumns(t,listId); }).then(function(m){ _peopleCols=m.writable; }); }
   if(CFG.storeList && !_storeCols){ p=p.then(function(){ return resolveListByName(t,CFG.storeList); }).then(function(r){ if(r.exists){ _storeListId=r.id; return listColumns(t,r.id).then(function(m){ _storeCols=m; }); } }); }
   return p;
 }
 function filt(fields,colset){ if(!colset) return fields; var o={},k; for(k in fields){ if(fields.hasOwnProperty(k) && (k==="Title" || colset[k])) o[k]=fields[k]; } return o; }
-function storeColIntl(lg){ if(!_storeCols) return null; var disp=STORE_MAP[lg]; if(!disp) return null; if(_storeCols.internal[disp]) return disp; return _storeCols.byDisplay[disp.toLowerCase()]||null; }
+function storeColIntl(lg){ if(!_storeCols) return null;
+  if(lg==="name"){ if(_storeCols.writable && _storeCols.writable["Title"]) return "Title"; }
+  var disp=STORE_MAP[lg]; if(!disp) return null;
+  if(_storeCols.writable && _storeCols.writable[disp]) return disp;
+  var d=_storeCols.byDisplay[disp.toLowerCase()]; return (d && _storeCols.writable && _storeCols.writable[d])?d:null; }
 function storeToFields(st){ var f={},lg,intl,vals={ name:st.name||"", state:st.state||"", coach:st.coach||"", manager:st.manager||"", managerEmail:st.managerEmail||"", coachEmail:st.coachEmail||"", storeEmail:st.storeEmail||"", me:(st.me||null), tier:(st.tier||null), target:(st.target==null?null:st.target), hoursBudget:(Number(st.hoursBudget)||0), laborBudget:(Number(st.laborBudget)||0), storeStatus:(st.storeStatus||"Active"), _storeId:(st._storeId||"") };
   for(lg in vals){ if(vals.hasOwnProperty(lg)){ intl=storeColIntl(lg); if(intl) f[intl]=vals[lg]; } } return f; }
 function fieldsToStore(fd){ function g(lg){ var i=storeColIntl(lg); return (i&&typeof fd[i]!=="undefined")?fd[i]:undefined; }
