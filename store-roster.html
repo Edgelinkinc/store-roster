@@ -2167,6 +2167,7 @@ function pullRosterSilent(){
     }).then(function(items){
       if(items.length){ var emps=[],i; _spById={}; for(i=0;i<items.length;i++){ emps.push(fieldsToEmp(items[i].fields,items[i].id)); } DATA.employees=emps; lsSet(LS_DATA,DATA); }
       rebuildSnap(); rebuildStoreSnap(); fillSelects(); renderLegend(); render(); setSyncOK();
+      if(CFG.hubList && CFG.hubName){ setTimeout(function(){ pullNewHires(true); },400); }
     });
   }).catch(function(e){ setSyncErr(); });
 }
@@ -2328,11 +2329,11 @@ function loadHubCols(){
 }
 function hubStartedFlag(raw){ if(raw==null||raw==="") return false; if(CFG.hubStartedVal){ return (""+raw).toLowerCase()===(""+CFG.hubStartedVal).toLowerCase(); } if(raw===true) return true; var s=(""+raw).toLowerCase(); if(s==="yes"||s==="true"||s==="1") return true; if(/^\d{4}-\d{2}-\d{2}/.test(s)) return true; return false; }
 function empByHub(hubId){ for(var i=0;i<DATA.employees.length;i++){ if(DATA.employees[i].hubId===hubId) return DATA.employees[i]; } return null; }
-function pullNewHires(){
-  if(!account){ setStatus("Sign in first.","bad"); return; }
-  if(!CFG.hubList || !CFG.hubName){ setStatus("Load the Hub columns and map them first.","bad"); return; }
+function pullNewHires(silent){
+  if(!account){ if(!silent) setStatus("Sign in first.","bad"); return; }
+  if(!CFG.hubList || !CFG.hubName){ if(!silent) setStatus("Load the Hub columns and map them first.","bad"); return; }
   setSync("Reading Hub\u2026");
-  getToken().then(function(t){ return resolveSite(t).then(function(){ return resolveListByName(t,CFG.hubList); }).then(function(r){ if(!r.exists) throw new Error("Hub list not found."); return readAllItems(t,"/sites/"+siteId+"/lists/"+r.id+"/items?expand=fields&$top=200"); }).then(function(items){
+  getToken().then(function(t){ return resolveSite(t).then(function(){ return resolveListByName(t,CFG.hubList); }).then(function(r){ if(!r.exists) throw new Error("Hub list not found."); return readAllItems(t,"/sites/"+siteId+"/lists/"+r.id+"/items?expand=fields&$top=500"); }).then(function(items){
     var addedP=0,activated=0,i;
     for(i=0;i<items.length;i++){ var f=items[i].fields||{}, hubId=items[i].id;
       var nm=(f[CFG.hubName]||"")+""; var sd=f[CFG.hubStart]?(""+f[CFG.hubStart]).slice(0,10):""; var storeName=(CFG.hubStore?(f[CFG.hubStore]||""):"")+"";
@@ -2351,9 +2352,10 @@ function pullNewHires(){
         if(started && e.pending){ e.pending=false; if(empTotalHours(e)===0 && sid){ e.hoursByStore=e.hoursByStore||{}; e.hoursByStore[sid]=defaultHours(e.status||"FT"); } activated++; }
       }
     }
-    saveData(); fillSelects(); renderLegend(); render(); setSyncOK(); flashSync("Hub synced");
-    alert("New Hire Hub sync:\n"+addedP+" new pending hire(s)\n"+activated+" moved to active.");
-  }); }).catch(function(e){ setSyncErr(); alert("Hub pull failed: "+e.message); });
+    if(addedP||activated){ saveData(); fillSelects(); renderLegend(); render(); }
+    setSyncOK(); flashSync(silent?((addedP||activated)?("Hub: +"+addedP+" pending, "+activated+" active"):"Hub up to date"):"Hub synced");
+    if(!silent) alert("New Hire Hub sync:\n"+addedP+" new pending hire(s)\n"+activated+" moved to active.");
+  }); }).catch(function(e){ setSyncErr(); if(!silent) alert("Hub pull failed: "+e.message); });
 }
 function setSync(msg){ var d=document.getElementById("syncDot"); d.className="syncdot on"; document.getElementById("syncTxt").textContent=msg; }
 function setSyncOK(){ updateSyncUI(); }
