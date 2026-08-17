@@ -670,6 +670,7 @@ table.sheet .flagpill{margin:0 auto;}
             <div class="mrow"><label>Name column</label><select id="cfgHubName"></select></div>
             <div class="mrow"><label>Start date column</label><select id="cfgHubStart"></select></div>
             <div class="mrow"><label>Store / location column</label><select id="cfgHubStore"></select></div>
+            <div class="mrow"><label>NTID column <span style="color:var(--muted)">(optional; auto-fills NTID on the roster)</span></label><select id="cfgHubNtid"></select></div>
             <div class="mrow"><label>"Started" column</label><select id="cfgHubStarted"></select></div>
             <div class="mrow"><label>"Started" means this value <span style="color:var(--muted)">(exact match; for a Yes/No column leave blank)</span></label><input type="text" id="cfgHubStartedVal" placeholder="Started"></div>
             <button class="btn btn-primary" id="pullHubBtn" onclick="pullNewHires()">Pull New Hires</button>
@@ -2433,7 +2434,7 @@ function openSettings(){
   document.getElementById("cfgStoreList").value=CFG.storeList||"";
   document.getElementById("cfgHubList").value=CFG.hubList||"";
   if(CFG.hubName){ var mr=document.getElementById("hubMapRows"); mr.style.display="";
-    setSavedOpt("cfgHubName",CFG.hubName); setSavedOpt("cfgHubStart",CFG.hubStart); setSavedOpt("cfgHubStore",CFG.hubStore); setSavedOpt("cfgHubStarted",CFG.hubStarted);
+    setSavedOpt("cfgHubName",CFG.hubName); setSavedOpt("cfgHubStart",CFG.hubStart); setSavedOpt("cfgHubStore",CFG.hubStore); setSavedOpt("cfgHubNtid",CFG.hubNtid); setSavedOpt("cfgHubStarted",CFG.hubStarted);
     document.getElementById("cfgHubStartedVal").value=CFG.hubStartedVal||"";
   if(document.getElementById("cfgAdminEmails")) document.getElementById("cfgAdminEmails").value=CFG.adminEmails||"";
   if(document.getElementById("cfgAdminPin")) document.getElementById("cfgAdminPin").value=CFG.adminPin||"";
@@ -2450,7 +2451,7 @@ function saveSettings(){
   CFG.listName=document.getElementById("cfgList").value.trim();
   CFG.storeList=document.getElementById("cfgStoreList").value.trim();
   CFG.hubList=document.getElementById("cfgHubList").value.trim();
-  CFG.hubName=selVal("cfgHubName"); CFG.hubStart=selVal("cfgHubStart"); CFG.hubStore=selVal("cfgHubStore"); CFG.hubStarted=selVal("cfgHubStarted");
+  CFG.hubName=selVal("cfgHubName"); CFG.hubStart=selVal("cfgHubStart"); CFG.hubStore=selVal("cfgHubStore"); CFG.hubNtid=selVal("cfgHubNtid"); CFG.hubStarted=selVal("cfgHubStarted");
   CFG.hubStartedVal=(document.getElementById("cfgHubStartedVal")?document.getElementById("cfgHubStartedVal").value.trim():"");
   CFG.adminEmails=(document.getElementById("cfgAdminEmails")?document.getElementById("cfgAdminEmails").value.trim():"");
   CFG.adminPin=(document.getElementById("cfgAdminPin")?document.getElementById("cfgAdminPin").value.replace(/\s/g,""):"");
@@ -2765,7 +2766,7 @@ function execProvision(t,plan){
 function selVal(id){ var el=document.getElementById(id); return el?el.value:""; }
 function setSavedOpt(id,val){ var el=document.getElementById(id); if(el){ el.innerHTML="<option value='"+X(val)+"' selected>"+X(val)+"</option>"; } }
 function hubColOptions(cols,sel){ var o="<option value=''>\u2014</option>",i; for(i=0;i<cols.length;i++){ o+="<option value='"+X(cols[i].name)+"'"+(cols[i].name===sel?" selected":"")+">"+X(cols[i].displayName)+"</option>"; } return o; }
-function populateHubSelects(m){ document.getElementById("cfgHubName").innerHTML=hubColOptions(m.cols,CFG.hubName); document.getElementById("cfgHubStart").innerHTML=hubColOptions(m.cols,CFG.hubStart); document.getElementById("cfgHubStore").innerHTML=hubColOptions(m.cols,CFG.hubStore); document.getElementById("cfgHubStarted").innerHTML=hubColOptions(m.cols,CFG.hubStarted); }
+function populateHubSelects(m){ document.getElementById("cfgHubName").innerHTML=hubColOptions(m.cols,CFG.hubName); document.getElementById("cfgHubStart").innerHTML=hubColOptions(m.cols,CFG.hubStart); document.getElementById("cfgHubStore").innerHTML=hubColOptions(m.cols,CFG.hubStore); document.getElementById("cfgHubNtid").innerHTML=hubColOptions(m.cols,CFG.hubNtid); document.getElementById("cfgHubStarted").innerHTML=hubColOptions(m.cols,CFG.hubStarted); }
 function hubDebug(){
   if(!account){ setStatus("Sign in first.","bad"); return; }
   var name=(document.getElementById("cfgHubList").value.trim())||CFG.hubList; if(!name){ setStatus("Enter the Hub list name first.","bad"); return; }
@@ -2791,17 +2792,17 @@ function pullNewHires(silent){
     var addedP=0,activated=0,reverted=0,i;
     for(i=0;i<items.length;i++){ var f=items[i].fields||{}, hubId=items[i].id;
       var nm=(f[CFG.hubName]||"")+""; var sd=f[CFG.hubStart]?(""+f[CFG.hubStart]).slice(0,10):""; var storeName=(CFG.hubStore?(f[CFG.hubStore]||""):"")+"";
-      var started=hubStartedFlag(CFG.hubStarted?f[CFG.hubStarted]:"");
+      var started=hubStartedFlag(CFG.hubStarted?f[CFG.hubStarted]:""); var hubNt=(CFG.hubNtid?(""+(f[CFG.hubNtid]||"")):"").replace(/\s/g,"").toUpperCase();
       if(!nm.replace(/\s/g,"")) continue;
       var sid=storeName?storeIdByName(storeName):"";
       var e=empByHub(hubId);
       if(!e){
         if(!sd && !started) continue;
-        e={id:uid(),ntid:"",name:nm,stores:sid?[sid]:[],phone:"",email:"",birthday:"",role:"Retail Sales Rep",status:"FT",payRate:0,open:false,pending:!started,stage:((DATA.onboardSteps&&DATA.onboardSteps[0])||""),termed:false,termType:"",termDate:"",termReason:"",hoursByStore:{},hoursAuto:true,startDate:sd,flags:{performance:"",retention:"",replace:"",attendance:""},notes:"",hubId:hubId,offboard:{}};
+        e={id:uid(),ntid:hubNt,name:nm,stores:sid?[sid]:[],phone:"",email:"",birthday:"",role:"Retail Sales Rep",status:"FT",payRate:0,open:false,pending:!started,stage:((DATA.onboardSteps&&DATA.onboardSteps[0])||""),termed:false,termType:"",termDate:"",termReason:"",hoursByStore:{},hoursAuto:true,startDate:sd,flags:{performance:"",retention:"",replace:"",attendance:""},notes:"",hubId:hubId,offboard:{}};
         if(started){ e.pending=false; if(sid){ e.hoursByStore[sid]=defaultHours("FT"); } activated++; } else { addedP++; }
         DATA.employees.push(e);
       } else {
-        if(nm) e.name=nm; if(sd) e.startDate=sd;
+        if(nm) e.name=nm; if(sd) e.startDate=sd; if(hubNt && (e.ntid||"").toUpperCase()!==hubNt){ e.ntid=hubNt; }
         if(sid && empStores(e).indexOf(sid)<0){ var sl=empStores(e).slice(); sl.unshift(sid); e.stores=sl; }
         if(!e.termed){
           if(started){ if(e.pending){ e.pending=false; if(empTotalHours(e)===0 && sid){ e.hoursByStore=e.hoursByStore||{}; e.hoursByStore[sid]=defaultHours(e.status||"FT"); } activated++; } }
@@ -2873,7 +2874,7 @@ function boot(){
   if(typeof CFG.structured==="undefined") CFG.structured=false;
   if(typeof CFG.storeList==="undefined") CFG.storeList="";
   if(typeof CFG.hubList==="undefined") CFG.hubList="";
-  if(typeof CFG.hubName==="undefined"){ CFG.hubName=""; CFG.hubStart=""; CFG.hubStore=""; CFG.hubStarted=""; CFG.hubStartedVal=""; }
+  if(typeof CFG.hubName==="undefined"){ CFG.hubName=""; CFG.hubStart=""; CFG.hubStore=""; CFG.hubNtid=""; CFG.hubStarted=""; CFG.hubStartedVal=""; }
   UI=lsGet(LS_UI,{collapsed:{},view:"org",metric:null,sumCoach:{}});
   if(!UI.collapsed) UI.collapsed={};
   if(!UI.view) UI.view="org";
