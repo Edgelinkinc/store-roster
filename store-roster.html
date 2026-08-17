@@ -459,6 +459,8 @@ table.sheet .flagpill{margin:0 auto;}
 
 <div class="sheetpage" id="availPage" style="display:none"></div>
 
+<div class="sheetpage" id="schedPage" style="display:none"></div>
+
 <!-- Store modal -->
 <div class="scrim" id="storeScrim">
   <div class="modal">
@@ -983,15 +985,16 @@ function stat(n,l,cls){ return "<div class='stat "+cls+"'><div class='num'>"+n+"
 /* ---------- View switch ---------- */
 function setView(v){
   UI.view=v; saveUI();
-  var org=(v==="org"), sum=(v==="summary"), sheet=(v==="sheet"), term=(v==="term"), avail=(v==="avail");
+  var org=(v==="org"), sum=(v==="summary"), sheet=(v==="sheet"), term=(v==="term"), avail=(v==="avail"), sched=(v==="sched");
   document.getElementById("main").style.display=org?"":"none";
   document.getElementById("summaryPage").style.display=sum?"":"none";
   document.getElementById("sheetPage").style.display=sheet?"":"none";
   document.getElementById("termPage").style.display=term?"":"none";
   document.getElementById("availPage").style.display=avail?"":"none";
+  document.getElementById("schedPage").style.display=sched?"":"none";
   document.getElementById("summary").style.display=org?"":"none";
   document.getElementById("flagLegend").style.display=org?"":"none";
-  var flt=document.querySelector(".filters"); if(flt) flt.style.display=(sum||term||avail)?"none":"";
+  var flt=document.querySelector(".filters"); if(flt) flt.style.display=(sum||term||avail||sched)?"none":"";
   document.getElementById("viewOrg").className="vbtn"+(org?" active":"");
   document.getElementById("viewSum").className="vbtn"+(sum?" active":"");
   document.getElementById("viewSheet").className="vbtn"+(sheet?" active":"");
@@ -1002,6 +1005,7 @@ function setView(v){
   if(sheet) renderSheet();
   if(term) renderTermPage();
   if(avail) renderAvailPage();
+  if(sched) renderSchedPage();
 }
 
 /* ---------- CEO summary page ---------- */
@@ -1120,8 +1124,56 @@ function avEditAddRange(dk){ var d=avNormDay(_avEdit.av[dk]),e=empById(_avEdit.i
 function avEditDelRange(dk,idx){ var d=avNormDay(_avEdit.av[dk]); if(d.ranges){ d.ranges.splice(idx,1); if(!d.ranges.length){ _avEdit.av[dk]={off:true}; } else { _avEdit.av[dk]={ranges:d.ranges}; } } renderAvailEditor(); }
 function saveAvailEditor(){ var e=empById(_avEdit.id); if(!e||_avEdit.ro){ closeModal("availEditScrim"); return; }
   var out={},i; for(i=0;i<AV_DAYS.length;i++){ var dk=AV_DAYS[i][0],d=avNormDay(_avEdit.av[dk]||{off:true}); if(d.ranges){ var clean=[]; for(var j=0;j<d.ranges.length;j++){ if(d.ranges[j].from||d.ranges[j].to) clean.push(d.ranges[j]); } out[dk]=clean.length?{ranges:clean}:{off:true}; } else out[dk]=d; }
-  e.availability=out; saveData(); closeModal("availEditScrim"); if(UI.view==="avail") renderAvailPage();
+  e.availability=out; saveData(); closeModal("availEditScrim"); if(UI.view==="avail") renderAvailPage(); if(UI.view==="sched") renderSchedPage();
 }
+/* ---------- Scheduling: daily coverage (v1) ---------- */
+function schedDayHtml(d){ d=avNormDay(d); if(d.open) return "<span style='color:#0f6e56;font-weight:600'>Open</span>"; if(d.off) return "<span style='color:#b4b2a9'>Off</span>"; return "<span style='color:#4A1B5C'>"+X(avFormatDay(d))+"</span>"; }
+function renderSchedPage(){
+  var box=document.getElementById("schedPage"),admin=isHR(),regions=myRegions();
+  if(!UI.schedTab) UI.schedTab="coverage";
+  if(!UI.schedDay) UI.schedDay=AV_DAYS[(new Date().getDay()+6)%7][0];
+  var h="<div style='padding:4px 2px'>";
+  h+="<div style='display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap'><h2 class='bebas' style='margin:0'>Scheduling</h2>";
+  h+="<div class='sheet-tabs'><button class='stab"+(UI.schedTab==="coverage"?" active":"")+"' onclick=\"schedTab('coverage')\">Who's available</button><button class='stab"+(UI.schedTab==="prod"?" active":"")+"' onclick=\"schedTab('prod')\">Productivity</button></div></div>";
+  if(UI.schedTab==="prod"){
+    h+="<div style='background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;text-align:center;box-shadow:var(--shadow)'>";
+    h+="<div class='bebas' style='font-size:30px;color:var(--magenta)'>Productivity report</div>";
+    h+="<p style='color:var(--muted);font-size:13px;line-height:1.7;max-width:460px;margin:8px auto'>This will show sales-per-hour and labor efficiency next to each rep's scheduled hours, once the productivity data source is connected. Tell me what feeds it (sales export, punch data, POS) and I'll wire it up.</p>";
+    h+="<span class='pill'>Coming soon \u2014 needs data</span></div></div>";
+    box.innerHTML=h; return;
+  }
+  // day selector
+  h+="<div style='display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap'>";
+  for(var di=0;di<AV_DAYS.length;di++){ var dk=AV_DAYS[di][0]; h+="<button class='btn "+(UI.schedDay===dk?"btn-primary":"btn-soft")+"' style='padding:5px 14px' onclick=\"schedDay('"+dk+"')\">"+AV_DAYS[di][1]+"</button>"; }
+  h+="</div>";
+  var dayKey=UI.schedDay, dayLbl=""; for(var q=0;q<AV_DAYS.length;q++){ if(AV_DAYS[q][0]===dayKey) dayLbl=AV_DAYS[q][1]; }
+  // stores in scope, sorted
+  var stores=DATA.stores.slice().sort(function(a,b){ return (a.name||"").localeCompare(b.name||""); });
+  var shown=0;
+  for(var s=0;s<stores.length;s++){ var st=stores[s]; if((st.storeStatus||"Active")==="Closed") continue;
+    if(!admin){ if(regions.indexOf(regionOf(st.state))<0) continue; }
+    var emps=empsInStore(st.id).filter(function(e){ return isActive(e); });
+    if(!emps.length) continue;
+    var hrs=storeHours(st,dayKey); var hlabel=hrs?(hrs.o+"\u2013"+hrs.c):"Closed";
+    var avail=[],off=[]; emps.forEach(function(e){ var d=avNormDay((e.availability||{})[dayKey]); if(d.off) off.push(e); else avail.push(e); });
+    shown++;
+    h+="<div style='background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;box-shadow:var(--shadow)'>";
+    h+="<div style='display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px'>";
+    h+="<div><b style='color:var(--purple)'>"+X(st.name)+"</b> <span style='color:var(--muted);font-size:12px'>\u00b7 Coach: "+X(st.coach||"TBD")+(st.manager?(" \u00b7 Mgr: "+X(st.manager)):"")+"</span></div>";
+    h+="<div style='font-size:12px;color:var(--muted)'>Store hours "+dayLbl+": <b>"+X(hlabel)+"</b> \u00b7 "+avail.length+" avail / "+emps.length+"</div></div>";
+    h+="<div style='margin-top:8px;display:flex;flex-wrap:wrap;gap:6px'>";
+    if(!avail.length){ h+="<span style='color:var(--red);font-size:12.5px'>\u26a0 No one available</span>"; }
+    avail.forEach(function(e){ h+="<span style='background:#f1eaf3;border-radius:8px;padding:4px 10px;font-size:12px'><b>"+X(e.name)+"</b> \u2014 "+schedDayHtml((e.availability||{})[dayKey])+"</span>"; });
+    h+="</div>";
+    if(off.length){ h+="<div style='margin-top:6px;font-size:11.5px;color:var(--muted)'>Off: "+off.map(function(e){return X(e.name);}).join(", ")+"</div>"; }
+    h+="</div>";
+  }
+  if(!shown) h+="<p style='color:var(--muted)'>No stores with active reps in scope.</p>";
+  h+="</div>";
+  box.innerHTML=h;
+}
+function schedTab(t){ UI.schedTab=t; saveUI(); renderSchedPage(); }
+function schedDay(d){ UI.schedDay=d; saveUI(); renderSchedPage(); }
 /* ---------- Login gate + role routing ---------- */
 function gateShow(){ document.getElementById("loginGate").style.display="flex"; document.getElementById("coachMenu").style.display="none"; }
 function gateHideAll(){ document.getElementById("loginGate").style.display="none"; document.getElementById("coachMenu").style.display="none"; }
@@ -1155,12 +1207,12 @@ function renderSideNav(){
   var admin=isHR();
   document.getElementById("sideSub").textContent=admin?"STAFFING COMMAND":"AVAILABILITY";
   var items;
-  if(admin){ items=[["org","Org chart","ti-sitemap"],["summary","Summary","ti-chart-bar"],["sheet","Sheet","ti-table"],["avail","Availability","ti-clock"],["term","Terminated","ti-user-off"]]; }
+  if(admin){ items=[["org","Org chart","ti-sitemap"],["summary","Summary","ti-chart-bar"],["sheet","Sheet","ti-table"],["avail","Availability","ti-clock"],["sched","Scheduling","ti-calendar"],["term","Terminated","ti-user-off"]]; }
   else { items=[["avail","Availability","ti-clock"],["sched","Scheduling","ti-calendar"]]; }
   var cur=UI.view||"org",h="",i;
-  for(i=0;i<items.length;i++){ var v=items[i][0],lbl=items[i][1],ic=items[i][2],soon=(v==="sched");
-    h+="<button class='snav-item"+((cur===v&&!soon)?" active":"")+"' "+(soon?"style='opacity:.45' disabled":("onclick=\"sideGo('"+v+"')\""))+">";
-    h+="<span class='ic'><i class='ti "+ic+"'></i></span><span class='lbl'>"+lbl+"</span>"+(soon?" <span style='font-size:9px;background:rgba(255,255,255,.2);padding:1px 6px;border-radius:8px'>Soon</span>":"");
+  for(i=0;i<items.length;i++){ var v=items[i][0],lbl=items[i][1],ic=items[i][2];
+    h+="<button class='snav-item"+(cur===v?" active":"")+"' onclick=\"sideGo('"+v+"')\">";
+    h+="<span class='ic'><i class='ti "+ic+"'></i></span><span class='lbl'>"+lbl+"</span>";
     h+="</button>";
   }
   document.getElementById("sideNavItems").innerHTML=h;
