@@ -428,6 +428,8 @@ table.sheet .flagpill{margin:0 auto;}
     <button class="btn btn-soft" onclick="exportRosterCSV()">&#8615; Export roster CSV</button>
     <button class="btn btn-soft" onclick="document.getElementById('availXlsx').click()">&#8613; Import availability</button>
     <input type="file" id="availXlsx" accept=".xlsx" style="display:none" onchange="importAvailXlsx(this)">
+    <button class="btn btn-soft" onclick="document.getElementById('rosterXlsx').click()">&#8613; Import roster (merge)</button>
+    <input type="file" id="rosterXlsx" accept=".xlsx" style="display:none" onchange="importRosterXlsx(this)">
     <button class="btn btn-soft" onclick="openFlagModal()">Edit flag types</button>
     <button class="btn btn-soft" id="spLoadBtn" onclick="spLoad()" style="display:none">&#8635; Load from SharePoint</button>
     <button class="btn btn-soft" id="spSaveBtn" onclick="spSave()" style="display:none">&#8593; Save to SharePoint</button>
@@ -1894,6 +1896,41 @@ function _normName(s){ return (""+(s||"")).toLowerCase().replace(/[^a-z]/g,""); 
 function empByNameLoose(nm){ var key=_normName(nm),i,hit=null; if(!key) return null;
   for(i=0;i<DATA.employees.length;i++){ if(_normName(DATA.employees[i].name)===key){ if(hit) return "AMBIG"; hit=DATA.employees[i]; } }
   return hit;
+}
+function _normStore(s){ return (""+(s||"")).toUpperCase().replace(/\s*-\s*/g,"-").replace(/\s+/g," ").replace(/^\s+|\s+$/g,""); }
+function empByNtid(nt){ nt=(""+(nt||"")).toUpperCase(); if(!nt) return null; for(var i=0;i<DATA.employees.length;i++){ if((DATA.employees[i].ntid||"").toUpperCase()===nt) return DATA.employees[i]; } return null; }
+function storeByNameLoose(nm){ var key=_normStore(nm),i; if(!key) return null; for(i=0;i<DATA.stores.length;i++){ if(_normStore(DATA.stores[i].name)===key) return DATA.stores[i]; } return null; }
+function importRosterXlsx(input){
+  var file=input.files[0]; if(!file){ return; } input.value="";
+  if(typeof XLSX==="undefined"){ alert("Spreadsheet reader still loading \u2014 try again in a moment."); return; }
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var wb=XLSX.read(new Uint8Array(r.result),{type:"array"});
+      var sh=wb.Sheets["Roster"]||wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:""});
+      var hr=-1,i,j; for(i=0;i<rows.length && i<8;i++){ var jn=rows[i].join("|").toLowerCase(); if(jn.indexOf("ntid")>=0 && jn.indexOf("name")>=0){ hr=i; break; } }
+      if(hr<0){ alert("Couldn't find a header row with NTID and Name."); return; }
+      var head=rows[hr],col={}; for(j=0;j<head.length;j++){ col[(""+head[j]).toLowerCase().replace(/[^a-z0-9]/g,"")]=j; }
+      function g(row,name){ var k=col[name]; return (k==null||row[k]==null)?"":(""+row[k]).replace(/^\s+|\s+$/g,""); }
+      var added=0,exists=0,noStore=[],i2;
+      for(i2=hr+1;i2<rows.length;i2++){ var row=rows[i2]; var nt=g(row,"ntid").toUpperCase(),nm=g(row,"name"); if(!nt && !nm) continue;
+        if(nt && empByNtid(nt)){ exists++; continue; }
+        var storeNm=g(row,"store"),st=storeNm?storeByNameLoose(storeNm):null;
+        var status=(g(row,"status").toUpperCase().charAt(0)==="P")?"PT":"FT";
+        if(storeNm && !st){ noStore.push(nm+" ("+storeNm+")"); }
+        var hb={}; if(st){ hb[st.id]=defaultHours(status); }
+        DATA.employees.push({id:uid(),ntid:nt,name:nm||"(unnamed)",stores:st?[st.id]:[],phone:"",email:"",birthday:"",role:g(row,"role")||"Retail Sales Rep",status:status,payRate:0,open:false,pending:false,stage:"",termed:false,termType:"",termDate:"",termReason:"",hoursByStore:hb,hoursAuto:true,startDate:"",flags:{performance:"",retention:"",replace:"",attendance:""},notes:"",availability:{},offboard:{}});
+        added++;
+      }
+      saveData(); fillSelects(); renderLegend(); render();
+      var msg="Roster merge complete.\n"+added+" rep(s) added, "+exists+" already existed (kept).";
+      if(noStore.length) msg+="\n\nAdded but store not matched ("+noStore.length+") \u2014 assign a store on the Sheet tab:\n"+noStore.slice(0,12).join(", ")+(noStore.length>12?"\u2026":"");
+      if(added) msg+="\n\nClick Publish all to push the new reps to SharePoint.";
+      alert(msg);
+    }catch(err){ alert("Couldn't read that file: "+err.message); }
+  };
+  r.readAsArrayBuffer(file);
 }
 function importAvailXlsx(input){
   var file=input.files[0]; if(!file){ return; } input.value="";
