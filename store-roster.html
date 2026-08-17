@@ -2782,18 +2782,19 @@ function loadHubCols(){
   CFG.hubList=name; setStatus("Loading Hub columns\u2026","info");
   getToken().then(function(t){ return resolveSite(t).then(function(){ return resolveListByName(t,name); }).then(function(r){ if(!r.exists){ setStatus("Hub list '"+name+"' not found on this site.","bad"); return; } _hubListId=r.id; return listColumns(t,r.id).then(function(m){ hubColsCache=m; populateHubSelects(m); document.getElementById("hubMapRows").style.display=""; setStatus("Loaded "+m.cols.length+" columns \u2014 map the four fields, then Save settings.","ok"); }); }); }).catch(function(e){ setStatus("Load failed: "+e.message,"bad"); });
 }
-function hubStartedFlag(raw){ if(raw==null||raw==="") return false; if(CFG.hubStartedVal){ return (""+raw).toLowerCase()===(""+CFG.hubStartedVal).toLowerCase(); } if(raw===true) return true; var s=(""+raw).toLowerCase(); return (s==="yes"||s==="true"||s==="1"); }
+function hubStartedFlag(raw){ if(raw==null||raw==="") return false; var v=(""+raw).replace(/^\s+|\s+$/g,"").toLowerCase(); if(CFG.hubStartedVal){ return v===(""+CFG.hubStartedVal).replace(/^\s+|\s+$/g,"").toLowerCase(); } if(raw===true) return true; return (v==="yes"||v==="true"||v==="1"||v==="started"||v==="active"); }
 function empByHub(hubId){ for(var i=0;i<DATA.employees.length;i++){ if(DATA.employees[i].hubId===hubId) return DATA.employees[i]; } return null; }
 function pullNewHires(silent){
   if(!account){ if(!silent) setStatus("Sign in first.","bad"); return; }
   if(!CFG.hubList || !CFG.hubName){ if(!silent) setStatus("Load the Hub columns and map them first.","bad"); return; }
   setSync("Reading Hub\u2026");
   getToken().then(function(t){ return resolveSite(t).then(function(){ return resolveListByName(t,CFG.hubList); }).then(function(r){ if(!r.exists) throw new Error("Hub list not found."); return readAllItems(t,"/sites/"+siteId+"/lists/"+r.id+"/items?expand=fields&$top=500"); }).then(function(items){
-    var addedP=0,activated=0,reverted=0,i;
+    var addedP=0,activated=0,reverted=0,i,_unmatched={};
     for(i=0;i<items.length;i++){ var f=items[i].fields||{}, hubId=items[i].id;
       var nm=(f[CFG.hubName]||"")+""; var sd=f[CFG.hubStart]?(""+f[CFG.hubStart]).slice(0,10):""; var storeName=(CFG.hubStore?(f[CFG.hubStore]||""):"")+"";
       var started=hubStartedFlag(CFG.hubStarted?f[CFG.hubStarted]:""); var hubNt=(CFG.hubNtid?(""+(f[CFG.hubNtid]||"")):"").replace(/\s/g,"").toUpperCase();
       if(!nm.replace(/\s/g,"")) continue;
+      if(CFG.hubStarted && !started){ var rv=(""+(f[CFG.hubStarted]||"")).replace(/^\s+|\s+$/g,""); if(rv) _unmatched[rv]=(_unmatched[rv]||0)+1; }
       var sid=storeName?storeIdByName(storeName):"";
       var e=empByHub(hubId);
       if(!e){
@@ -2812,7 +2813,8 @@ function pullNewHires(silent){
     }
     if(addedP||activated||reverted){ saveData(); fillSelects(); renderLegend(); render(); }
     setSyncOK(); flashSync(silent?((addedP||activated||reverted)?("Hub: +"+addedP+"p "+activated+"a "+reverted+"\u21a9"):"Hub up to date"):"Hub synced");
-    if(!silent) alert("New Hire Hub sync:\n"+addedP+" new pending\n"+activated+" moved to active\n"+reverted+" moved back to pending.");
+    if(!silent){ var uk=Object.keys(_unmatched),um=""; if(uk.length){ um="\n\nValues in your \"Started\" column that did NOT count as started:\n"; for(var u=0;u<uk.length && u<8;u++){ um+="\u2022 \""+uk[u]+"\" ("+_unmatched[uk[u]]+")\n"; } um+="\nIf one of these means \"started\", set it as the \"Started means this value\" in Settings."; }
+      alert("New Hire Hub sync:\n"+addedP+" new pending\n"+activated+" moved to active\n"+reverted+" moved back to pending."+um); }
   }); }).catch(function(e){ setSyncErr(); if(!silent) alert("Hub pull failed: "+e.message); });
 }
 function setSync(msg){ var d=document.getElementById("syncDot"); d.className="syncdot on"; document.getElementById("syncTxt").textContent=msg; }
