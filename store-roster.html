@@ -2771,6 +2771,9 @@ function boot(){
   }
   if(migrated) lsSet(LS_DATA,DATA);
   CFG=lsGet(LS_CFG,{clientId:"",tenantId:"",siteUrl:"",listName:"",storeList:"",structured:false,auto:false,adminEmails:"",adminPin:""});
+  if(!CFG.adminEmails){ CFG.adminEmails="cheryl@edgelinkinc.com"; }
+  if(!CFG.adminPin){ CFG.adminPin="1234"; }
+  lsSet(LS_CFG,CFG);
   if(typeof CFG.structured==="undefined") CFG.structured=false;
   if(typeof CFG.storeList==="undefined") CFG.storeList="";
   if(typeof CFG.hubList==="undefined") CFG.hubList="";
