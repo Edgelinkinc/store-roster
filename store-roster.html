@@ -6,6 +6,7 @@
 <title>Edgelink Store Roster &amp; Org Chart</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js';s.onerror=function(){var s2=document.createElement('script');s2.src='https://alcdn.msftauth.net/browser/2.38.3/js/msal-browser.min.js';document.head.appendChild(s2);};document.head.appendChild(s);"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" onerror="this.onerror=null;var s=document.createElement('script');s.src='https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js';document.head.appendChild(s);"></script>
 <style>
 :root{
   --magenta:#E20074;
@@ -393,6 +394,8 @@ table.sheet .flagpill{margin:0 auto;}
     <button class="btn btn-soft" onclick="expandAll(false)">Collapse all</button>
     <button class="btn btn-soft" onclick="exportJSON()">&#8615; Backup (JSON)</button>
     <button class="btn btn-soft" onclick="exportRosterCSV()">&#8615; Export roster CSV</button>
+    <button class="btn btn-soft" onclick="document.getElementById('availXlsx').click()">&#8613; Import availability</button>
+    <input type="file" id="availXlsx" accept=".xlsx" style="display:none" onchange="importAvailXlsx(this)">
     <button class="btn btn-soft" onclick="openFlagModal()">Edit flag types</button>
     <button class="btn btn-soft" id="spLoadBtn" onclick="spLoad()" style="display:none">&#8635; Load from SharePoint</button>
     <button class="btn btn-soft" id="spSaveBtn" onclick="spSave()" style="display:none">&#8593; Save to SharePoint</button>
@@ -535,6 +538,15 @@ table.sheet .flagpill{margin:0 auto;}
       <button class="btn btn-soft" onclick="copyExport(this)">Copy</button>
       <button class="btn btn-primary" onclick="downloadExport()">Download</button>
     </div>
+  </div>
+</div>
+
+<!-- Availability editor modal -->
+<div class="scrim" id="availEditScrim">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-head"><h3 id="availEditTitle">Availability</h3><button class="x" onclick="closeModal('availEditScrim')">&times;</button></div>
+    <div class="modal-body"><div id="availEditBody"></div></div>
+    <div class="modal-foot"><button class="btn btn-soft" onclick="closeModal('availEditScrim')">Cancel</button><button class="btn btn-primary" onclick="saveAvailEditor()">Save availability</button></div>
   </div>
 </div>
 
@@ -957,6 +969,18 @@ function setView(v){
 
 /* ---------- CEO summary page ---------- */
 function coachOf(sid){ var st=storeById(sid); return st?st.coach:""; }
+/* ---------- Store hours (per store, per day; seasonally editable) ---------- */
+var AVDK=["mon","tue","wed","thu","fri","sat","sun"];
+function isMall(st){ return !!(st && /mall/i.test(st.name||"")); }
+function defaultHoursFor(st,dk){
+  if(isMall(st)){ if(dk==="sun") return {o:"10:00 AM",c:"6:00 PM"}; if(dk==="fri"||dk==="sat") return {o:"10:00 AM",c:"9:00 PM"}; return {o:"10:00 AM",c:"8:00 PM"}; }
+  return {o:"9:30 AM",c:"7:30 PM"};
+}
+function storeHours(st,dk){ if(st && st.hours && st.hours[dk]){ var h=st.hours[dk]; if(h.closed) return null; if(h.o&&h.c) return {o:h.o,c:h.c}; } return defaultHoursFor(st,dk); }
+function parseTimeMin(s){ var m=(""+s).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i); if(!m) return null; var h=parseInt(m[1],10)%12; if(/pm/i.test(m[3])) h+=12; return h*60+parseInt(m[2],10); }
+function minToTime(mn){ var h=Math.floor(mn/60),mm=mn%60,ap=h>=12?"PM":"AM",h12=h%12; if(h12===0) h12=12; return h12+":"+(mm<10?"0":"")+mm+" "+ap; }
+function timeSlots(o,c){ var a=parseTimeMin(o),b=parseTimeMin(c),out=[],t; if(a==null||b==null) return out; for(t=a;t<=b;t+=30) out.push(minToTime(t)); return out; }
+function ALL_SLOTS(){ return timeSlots("8:00 AM","10:00 PM"); }
 /* ---------- Availability view (region-scoped) ---------- */
 function regionOf(state){ state=(state||"").toUpperCase(); if(state==="TN") return "TN"; if(state==="AR") return "AR"; if(state==="RI"||state==="MA"||state==="CT") return "NE"; return state||"?"; }
 function regionLabel(g){ return g==="NE"?"RI / MA / CT":(g||"?"); }
@@ -993,13 +1017,11 @@ function renderAvailPage(){
   var dayH=""; for(i=0;i<AV_DAYS.length;i++) dayH+="<th>"+AV_DAYS[i][1]+"</th>";
   for(var gi=0;gi<order.length;gi++){ var own=order[gi],list=groups[own];
     h+="<h3 style='margin:16px 0 6px;color:var(--purple)'>"+X(own)+" <span style='font-weight:400;color:var(--muted);font-size:12px'>("+list.length+")</span></h3>";
-    h+="<div class='sheet-wrap' style='margin-bottom:10px'><table class='sheet'><thead><tr><th style='min-width:150px'>Rep</th><th>Home store</th>"+dayH+"</tr></thead><tbody>";
-    for(i=0;i<list.length;i++){ emp=list[i]; var eid=jsq(emp.id),ed=canEditEmp(emp),st=empHomeStoreObj(emp);
-      h+="<tr><td><b>"+X(emp.name)+"</b>"+(ed?"":" <span class='multichip' title='Read-only'>view</span>")+"</td><td>"+X(st?st.name:"")+"</td>";
-      for(var d=0;d<AV_DAYS.length;d++){ var k=AV_DAYS[d][0],txt=avFormatDay((emp.availability||{})[k]);
-        if(ed){ h+="<td><input type='text' class='cellin avin' style='min-width:96px' value='"+X(txt)+"' onchange=\"savRepDay('"+eid+"','"+k+"',this)\"></td>"; }
-        else { h+="<td style='color:var(--muted)'>"+X(txt)+"</td>"; }
-      }
+    h+="<div class='sheet-wrap' style='margin-bottom:10px'><table class='sheet'><thead><tr><th style='min-width:150px'>Rep</th><th>Home store</th><th>Weekly availability</th><th></th></tr></thead><tbody>";
+    for(i=0;i<list.length;i++){ emp=list[i]; var eid=jsq(emp.id),ed=canEditEmp(emp),st=empHomeStoreObj(emp),summ=availSummary(emp.availability)||"\u2014";
+      h+="<tr><td><b>"+X(emp.name)+"</b></td><td>"+X(st?st.name:"")+"</td>";
+      h+="<td style='color:"+(summ==="\u2014"?"var(--muted)":"inherit")+"'>"+X(summ)+"</td>";
+      h+="<td style='text-align:right'><button class='btn btn-soft' style='padding:3px 12px' onclick=\"openAvailEditor('"+eid+"',"+(ed?"false":"true")+")\">"+(ed?"Edit":"View")+"</button></td>";
       h+="</tr>";
     }
     h+="</tbody></table></div>";
@@ -1014,6 +1036,54 @@ function savRepDay(eid,k,el){
   var d=avParseDay(el.value); e.availability[k]=d;
   el.value=avFormatDay(d);
   saveData();
+}
+/* ---------- Availability editor modal (dropdowns) ---------- */
+var _avEdit=null;
+function openAvailEditor(eid,readonly){
+  var e=empById(eid); if(!e) return;
+  _avEdit={id:eid, ro:(readonly||!canEditEmp(e)), av:JSON.parse(JSON.stringify(e.availability||{}))};
+  document.getElementById("availEditTitle").textContent=(_avEdit.ro?"Availability (view) \u2014 ":"Set availability \u2014 ")+e.name;
+  var foot=document.querySelector("#availEditScrim .modal-foot"); if(foot) foot.style.display=_avEdit.ro?"none":"";
+  renderAvailEditor(); showModal("availEditScrim");
+}
+function _statusOf(d){ d=avNormDay(d); return d.open?"open":(d.off?"off":"custom"); }
+function renderAvailEditor(){
+  var e=empById(_avEdit.id),home=empHomeStoreObj(e),ro=_avEdit.ro,h="",i;
+  h+="<div style='font-size:12px;color:var(--muted);margin-bottom:10px'>Home store: <b>"+X(home?home.name:"\u2014")+"</b>. Times follow this store's open hours per day.</div>";
+  for(i=0;i<AV_DAYS.length;i++){ var dk=AV_DAYS[i][0],lbl=AV_DAYS[i][1],d=avNormDay(_avEdit.av[dk]||{}),stt=_statusOf(d);
+    var hrs=storeHours(home,dk),slots=hrs?timeSlots(hrs.o,hrs.c):ALL_SLOTS();
+    h+="<div style='display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)'>";
+    h+="<div style='width:38px;font-weight:700;color:var(--purple);padding-top:5px'>"+lbl+"</div>";
+    h+="<div style='flex:1'>";
+    h+="<select "+(ro?"disabled":"")+" onchange=\"avEditStatus('"+dk+"',this.value)\" style='padding:5px'>";
+    h+="<option value='open'"+(stt==="open"?" selected":"")+">Open (all day)</option>";
+    h+="<option value='off'"+(stt==="off"?" selected":"")+">Off</option>";
+    h+="<option value='custom'"+(stt==="custom"?" selected":"")+">Custom hours</option></select>";
+    if(stt==="custom"){ var rs=(d.ranges&&d.ranges.length)?d.ranges:[{from:(hrs?hrs.o:""),to:(hrs?hrs.c:"")}];
+      h+="<div style='margin-top:6px'>";
+      for(var rI=0;rI<rs.length;rI++){ var r=rs[rI];
+        h+="<div style='display:flex;align-items:center;gap:6px;margin-bottom:4px'>";
+        h+="<select "+(ro?"disabled":"")+" onchange=\"avEditRange('"+dk+"',"+rI+",'from',this.value)\">"+slotOpts(slots,r.from)+"</select>";
+        h+="<span style='color:var(--muted)'>to</span>";
+        h+="<select "+(ro?"disabled":"")+" onchange=\"avEditRange('"+dk+"',"+rI+",'to',this.value)\">"+slotOpts(slots,r.to)+"</select>";
+        if(!ro && rs.length>1) h+="<button type='button' class='btn btn-soft' style='padding:2px 8px' onclick=\"avEditDelRange('"+dk+"',"+rI+")\">&times;</button>";
+        h+="</div>";
+      }
+      if(!ro) h+="<button type='button' class='btn btn-soft' style='padding:3px 10px;font-size:12px' onclick=\"avEditAddRange('"+dk+"')\">+ add range</button>";
+      h+="</div>";
+    }
+    h+="</div></div>";
+  }
+  document.getElementById("availEditBody").innerHTML=h;
+}
+function slotOpts(slots,sel){ var o="",i; for(i=0;i<slots.length;i++){ o+="<option"+(slots[i]===sel?" selected":"")+">"+slots[i]+"</option>"; } if(sel && slots.indexOf(sel)<0){ o="<option selected>"+X(sel)+"</option>"+o; } return o; }
+function avEditStatus(dk,val){ if(val==="open") _avEdit.av[dk]={open:true}; else if(val==="off") _avEdit.av[dk]={off:true}; else { var e=empById(_avEdit.id),hrs=storeHours(empHomeStoreObj(e),dk); _avEdit.av[dk]={ranges:[{from:(hrs?hrs.o:""),to:(hrs?hrs.c:"")}]}; } renderAvailEditor(); }
+function avEditRange(dk,idx,which,val){ var d=avNormDay(_avEdit.av[dk]); if(!d.ranges) d={ranges:[{from:"",to:""}]}; if(!d.ranges[idx]) d.ranges[idx]={from:"",to:""}; d.ranges[idx][which]=val; _avEdit.av[dk]={ranges:d.ranges}; }
+function avEditAddRange(dk){ var d=avNormDay(_avEdit.av[dk]),e=empById(_avEdit.id),hrs=storeHours(empHomeStoreObj(e),dk); if(!d.ranges) d={ranges:[]}; d.ranges.push({from:(hrs?hrs.o:""),to:(hrs?hrs.c:"")}); _avEdit.av[dk]={ranges:d.ranges}; renderAvailEditor(); }
+function avEditDelRange(dk,idx){ var d=avNormDay(_avEdit.av[dk]); if(d.ranges){ d.ranges.splice(idx,1); if(!d.ranges.length){ _avEdit.av[dk]={off:true}; } else { _avEdit.av[dk]={ranges:d.ranges}; } } renderAvailEditor(); }
+function saveAvailEditor(){ var e=empById(_avEdit.id); if(!e||_avEdit.ro){ closeModal("availEditScrim"); return; }
+  var out={},i; for(i=0;i<AV_DAYS.length;i++){ var dk=AV_DAYS[i][0],d=avNormDay(_avEdit.av[dk]||{off:true}); if(d.ranges){ var clean=[]; for(var j=0;j<d.ranges.length;j++){ if(d.ranges[j].from||d.ranges[j].to) clean.push(d.ranges[j]); } out[dk]=clean.length?{ranges:clean}:{off:true}; } else out[dk]=d; }
+  e.availability=out; saveData(); closeModal("availEditScrim"); if(UI.view==="avail") renderAvailPage();
 }
 /* ---------- Login gate + role routing ---------- */
 function gateShow(){ document.getElementById("loginGate").style.display="flex"; document.getElementById("coachMenu").style.display="none"; }
@@ -1730,6 +1800,45 @@ function cycleFlag(empId,key){
   var cur=emp.flags[key]||"";
   var idx=order.indexOf(cur); idx=(idx+1)%order.length;
   emp.flags[key]=order[idx]; saveData(); render();
+}
+function _normName(s){ return (""+(s||"")).toLowerCase().replace(/[^a-z]/g,""); }
+function empByNameLoose(nm){ var key=_normName(nm),i,hit=null; if(!key) return null;
+  for(i=0;i<DATA.employees.length;i++){ if(_normName(DATA.employees[i].name)===key){ if(hit) return "AMBIG"; hit=DATA.employees[i]; } }
+  return hit;
+}
+function importAvailXlsx(input){
+  var file=input.files[0]; if(!file){ return; } input.value="";
+  if(typeof XLSX==="undefined"){ alert("Spreadsheet reader still loading \u2014 try again in a moment."); return; }
+  var r=new FileReader();
+  r.onload=function(){
+    try{
+      var wb=XLSX.read(new Uint8Array(r.result),{type:"array"});
+      var sh=wb.Sheets["Availability"]||wb.Sheets[wb.SheetNames[0]];
+      var rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:""});
+      // find the header row (contains "Rep" and day names)
+      var hr=-1,i,j; for(i=0;i<rows.length && i<8;i++){ var joined=rows[i].join("|").toLowerCase(); if(joined.indexOf("rep")>=0 && joined.indexOf("mon")>=0){ hr=i; break; } }
+      if(hr<0){ alert("Couldn't find the header row (Rep / Mon ... Sun). Is this an availability template?"); return; }
+      var head=rows[hr], col={}; for(j=0;j<head.length;j++){ col[(""+head[j]).toLowerCase().replace(/[^a-z0-9]/g,"")]=j; }
+      var dayKeys=[["mon","mon"],["tue","tue"],["wed","wed"],["thu","thu"],["fri","fri"],["sat","sat"],["sun","sun"]];
+      var repCol=(typeof col["rep"]!=="undefined")?col["rep"]:0;
+      var updated=0,skipped=[],ambig=[],k;
+      for(i=hr+1;i<rows.length;i++){ var row=rows[i]; var nm=(""+(row[repCol]||"")).replace(/^\s+|\s+$/g,""); if(!nm) continue;
+        var e=empByNameLoose(nm);
+        if(e==="AMBIG"){ ambig.push(nm); continue; }
+        if(!e){ skipped.push(nm); continue; }
+        if(!canEditEmp(e)){ /* HR importing: allow all; canEditEmp is true for HR */ }
+        var av=e.availability||{}; var any=false;
+        for(k=0;k<dayKeys.length;k++){ var c=col[dayKeys[k][0]]; if(typeof c==="undefined") continue; var cell=row[c]; if(typeof cell==="undefined") continue; var d=avParseDay(cell); av[dayKeys[k][1]]=d; any=true; }
+        if(any){ e.availability=av; updated++; }
+      }
+      saveData(); if(UI.view==="avail") renderAvailPage();
+      var msg="Availability imported.\n"+updated+" rep(s) updated.";
+      if(skipped.length) msg+="\n\nNot found in roster ("+skipped.length+"): "+skipped.slice(0,12).join(", ")+(skipped.length>12?"\u2026":"");
+      if(ambig.length) msg+="\n\nDuplicate names, skipped ("+ambig.length+"): "+ambig.slice(0,8).join(", ");
+      alert(msg);
+    }catch(err){ alert("Couldn't read that file: "+err.message); }
+  };
+  r.readAsArrayBuffer(file);
 }
 function empById(id){ for(var i=0;i<DATA.employees.length;i++){ if(DATA.employees[i].id===id) return DATA.employees[i]; } return null; }
 function addOpen(sid){
