@@ -257,6 +257,33 @@ main{max-width:1280px;margin:0 auto;padding:18px 20px 80px;}
 .viewswitch{display:inline-flex;background:rgba(255,255,255,.12);border-radius:10px;padding:3px;gap:3px;margin-right:8px;}
 .vbtn{font-family:'Montserrat',Arial,sans-serif;font-weight:700;font-size:12px;border:none;background:transparent;color:rgba(255,255,255,.8);padding:7px 15px;border-radius:8px;cursor:pointer;letter-spacing:.3px;}
 .vbtn.active{background:#fff;color:var(--purple);box-shadow:0 2px 6px rgba(0,0,0,.15);}
+#sideNav{position:fixed;left:0;top:0;bottom:0;width:186px;background:var(--purple);color:#fff;z-index:600;display:flex;flex-direction:column;}
+#sideNav .sbrand{padding:16px 16px 14px;border-bottom:1px solid rgba(255,255,255,.15);}
+#sideNav .sbrand .bebas{font-size:25px;letter-spacing:1px;line-height:1;color:#fff;}
+#sideNav .sbrand .ssub{font-size:9px;opacity:.7;letter-spacing:1.2px;margin-top:2px;}
+#sideNav .snav{padding:10px 0;flex:1;overflow:auto;}
+#sideNav .snav-item{display:flex;align-items:center;gap:10px;padding:10px 16px;font-size:13px;font-weight:600;color:rgba(255,255,255,.85);cursor:pointer;border:none;background:transparent;width:100%;text-align:left;font-family:'Montserrat',Arial,sans-serif;}
+#sideNav .snav-item:hover{background:rgba(255,255,255,.08);}
+#sideNav .snav-item.active{background:var(--magenta);color:#fff;}
+#sideNav .snav-item .ic{font-size:16px;width:18px;text-align:center;}
+#sideNav .sfoot{padding:12px 16px;border-top:1px solid rgba(255,255,255,.15);font-size:12px;}
+#sideNav .sfoot .who{opacity:.75;}#sideNav .sfoot .reg{opacity:.5;font-size:10.5px;margin-bottom:8px;}
+#sideNav .sfoot a{color:rgba(255,255,255,.85);cursor:pointer;display:flex;align-items:center;gap:8px;padding:5px 0;text-decoration:none;}
+body.has-side{padding-left:186px;}
+body.has-side header.app{margin-left:0;}
+.viewswitch{display:none!important;}
+body.role-coach .toolbar,body.role-coach .filters,body.role-coach #summary,body.role-coach .flag-legend{display:none!important;}
+body.role-coach header.app{display:none!important;}
+@media(max-width:820px){
+  body.has-side{padding-left:0;padding-top:0;}
+  #sideNav{position:static;width:100%;flex-direction:row;flex-wrap:wrap;align-items:center;}
+  #sideNav .sbrand{border-bottom:none;padding:10px 14px;flex:1;}
+  #sideNav .snav{display:flex;flex-direction:row;padding:0 8px;flex:2;overflow-x:auto;}
+  #sideNav .snav-item{padding:10px 12px;white-space:nowrap;}
+  #sideNav .snav-item .lbl{display:inline;}
+  #sideNav .sfoot{border-top:none;padding:8px 14px;}
+  #sideNav .sfoot .reg{display:none;}
+}
 
 /* summary page */
 .sumpage{max-width:1280px;margin:0 auto;padding:18px 20px 90px;}
@@ -370,6 +397,11 @@ table.sheet .flagpill{margin:0 auto;}
     <div id="coachMenuTiles" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px"></div>
   </div>
 </div>
+<nav id="sideNav" style="display:none">
+  <div class="sbrand"><div class="bebas">EDGELINK</div><div class="ssub" id="sideSub">STAFFING COMMAND</div></div>
+  <div class="snav" id="sideNavItems"></div>
+  <div class="sfoot" id="sideFoot"></div>
+</nav>
 <header class="app">
   <div class="headbar">
     <div class="brand">
@@ -456,6 +488,11 @@ table.sheet .flagpill{margin:0 auto;}
       </div>
       <div class="mrow"><label>Store manager</label><select id="sManager" onchange="onMgrChange()"></select></div>
       <div class="mrow" id="sManagerCustomRow" style="display:none"><label>Manager name (not in roster)</label><input type="text" id="sManagerCustom" placeholder="Type manager name"></div>
+      <details style="margin-top:6px">
+        <summary style="cursor:pointer;font-weight:700;color:var(--purple);font-size:13px">Store hours (per day) &mdash; edit for holiday/season</summary>
+        <div style="font-size:11.5px;color:var(--muted);margin:6px 0">Leave blank to use the default (standard 9:30 AM&ndash;7:30 PM; malls extended). These set the time options coaches get for this store.</div>
+        <div id="sHoursBox"></div>
+      </details>
     </div>
     <div class="modal-foot">
       <button class="btn btn-danger" id="sDelete" onclick="deleteStore()">Delete store</button>
@@ -674,7 +711,7 @@ var msalApp=null, account=null, siteId="", listId="", spItemId="", _pinAdmin=fal
 var _spById={}, _snap={}, _pushTimer=null;
 var _peopleCols=null, _storeCols=null, _storeListId="", _storeById={}, _storeSnap={};
 var _hubListId="", hubColsCache=null, _dirtyStore={};
-var STORE_MAP={ name:"Store Name", state:"Market", coach:"Coach Assigned", manager:"Manager Assigned", managerEmail:"Manager Email", coachEmail:"Coach Email", storeEmail:"Store Email", me:"Coverage", tier:"Tier", target:"Target", hoursBudget:"HoursBudget", laborBudget:"LaborBudget", storeStatus:"StoreStatus", _storeId:"StoreId" };
+var STORE_MAP={ name:"Store Name", state:"Market", coach:"Coach Assigned", manager:"Manager Assigned", managerEmail:"Manager Email", coachEmail:"Coach Email", storeEmail:"Store Email", me:"Coverage", tier:"Tier", target:"Target", hoursBudget:"HoursBudget", laborBudget:"LaborBudget", storeStatus:"StoreStatus", _storeId:"StoreId", hours:"StoreHours" };
 
 /* ---------- Seed roster ---------- */
 function seedData(){
@@ -1094,7 +1131,7 @@ function gatePinEnter(){
   var el=document.getElementById("gatePin"),pin=(CFG&&CFG.adminPin)?(""+CFG.adminPin):"";
   var v=(el?el.value:"").replace(/\s/g,"");
   if(!pin){ document.getElementById("gateMsg").textContent="No admin PIN set. Set one in Settings."; return; }
-  if(v===pin){ _pinAdmin=true; if(el) el.value=""; document.getElementById("gateMsg").textContent=""; gateHideAll(); setView(UI.view||"org"); }
+  if(v===pin){ _pinAdmin=true; if(el) el.value=""; document.getElementById("gateMsg").textContent=""; routeByRole(); }
   else { document.getElementById("gateMsg").textContent="Incorrect PIN."; }
 }
 function gateSignOut(){
@@ -1103,41 +1140,41 @@ function gateSignOut(){
   routeByRole();
 }
 function routeByRole(){
-  // PIN admin -> full dashboard. Not signed in -> gate. HR -> dashboard. Coach -> menu.
-  if(_pinAdmin){ gateHideAll(); return; }
-  if(!account){ gateShow(); return; }
-  if(isHR()){ gateHideAll(); return; }
-  if(myRegions().length){ showCoachMenu(); return; }
-  // signed in but not recognized as HR or coach/manager
-  gateHideAll(); setView("avail");
+  if(!account && !_pinAdmin){ gateShow(); document.body.classList.remove("has-side"); document.getElementById("sideNav").style.display="none"; return; }
+  gateHideAll();
+  var admin=isHR();
+  document.body.classList.add("has-side");
+  document.body.classList.toggle("role-coach",!admin);
+  document.body.classList.toggle("role-admin",admin);
+  document.getElementById("sideNav").style.display="flex";
+  renderSideNav();
+  if(admin){ setView(UI.view||"org"); }
+  else { setView("avail"); }
 }
-function showCoachMenu(){
-  document.getElementById("loginGate").style.display="none";
-  var m=document.getElementById("coachMenu"); m.style.display="block";
-  var who=(account?account.username:"");
-  document.getElementById("coachMenuWho").innerHTML="Signed in as <b>"+X(who)+"</b> \u00b7 Region: "+X(myRegions().map(regionLabel).join(" + "));
-  var s2=document.getElementById("syncTxt2"); if(s2){ s2.textContent=account?"Synced":""; }
-  var tiles=[
-    {t:"Set Availability",d:"Enter Open / Off / hours for your reps, by day.",go:"openCoachAvail()"},
-    {t:"Scheduling",d:"Coming soon \u2014 build schedules from availability.",dis:true}
-  ];
-  var h="",i; for(i=0;i<tiles.length;i++){ var x=tiles[i];
-    h+="<div style='background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);"+(x.dis?"opacity:.55":"cursor:pointer")+"' "+(x.dis?"":("onclick=\""+x.go+"\""))+">";
-    h+="<div class='bebas' style='font-size:24px;color:"+(x.dis?"var(--muted)":"var(--magenta)")+"'>"+X(x.t)+"</div>";
-    h+="<div style='font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5'>"+X(x.d)+"</div>";
-    if(x.dis) h+="<span class='pill' style='margin-top:10px;display:inline-block'>Soon</span>";
-    h+="</div>";
+function renderSideNav(){
+  var admin=isHR();
+  document.getElementById("sideSub").textContent=admin?"STAFFING COMMAND":"AVAILABILITY";
+  var items;
+  if(admin){ items=[["org","Org chart","ti-sitemap"],["summary","Summary","ti-chart-bar"],["sheet","Sheet","ti-table"],["avail","Availability","ti-clock"],["term","Terminated","ti-user-off"]]; }
+  else { items=[["avail","Availability","ti-clock"],["sched","Scheduling","ti-calendar"]]; }
+  var cur=UI.view||"org",h="",i;
+  for(i=0;i<items.length;i++){ var v=items[i][0],lbl=items[i][1],ic=items[i][2],soon=(v==="sched");
+    h+="<button class='snav-item"+((cur===v&&!soon)?" active":"")+"' "+(soon?"style='opacity:.45' disabled":("onclick=\"sideGo('"+v+"')\""))+">";
+    h+="<span class='ic'><i class='ti "+ic+"'></i></span><span class='lbl'>"+lbl+"</span>"+(soon?" <span style='font-size:9px;background:rgba(255,255,255,.2);padding:1px 6px;border-radius:8px'>Soon</span>":"");
+    h+="</button>";
   }
-  document.getElementById("coachMenuTiles").innerHTML=h;
+  document.getElementById("sideNavItems").innerHTML=h;
+  var foot="";
+  if(admin){ foot="<a onclick=\"openSettings()\"><i class='ti ti-settings'></i> Settings</a>"; if(account||_pinAdmin) foot+="<a onclick=\"gateSignOut()\"><i class='ti ti-logout'></i> "+(_pinAdmin&&!account?"Lock":"Sign out")+"</a>"; }
+  else { foot="<div class='who'>"+X(account?account.username:"")+"</div><div class='reg'>"+X(myRegions().map(regionLabel).join(" + "))+"</div><a onclick=\"gateSignOut()\"><i class='ti ti-logout'></i> Sign out</a>"; }
+  document.getElementById("sideFoot").innerHTML=foot;
 }
-function openCoachAvail(){ document.getElementById("coachMenu").style.display="none"; setView("avail");
-  // add a back link into the availability page header
-  var box=document.getElementById("availPage");
-  setTimeout(function(){ if(!document.getElementById("availBack")){ var b=document.createElement("button"); b.id="availBack"; b.className="btn btn-soft"; b.style.margin="0 0 10px"; b.textContent="\u2190 Menu"; b.onclick=function(){ showCoachMenu(); }; if(box && box.firstChild) box.insertBefore(b,box.firstChild); } },30);
-}
+function sideGo(v){ setView(v); renderSideNav(); }
+function showCoachMenu(){ routeByRole(); }
+function openCoachAvail(){ setView("avail"); }
 function coachEntry(){
-  if(!account){ if(configReady()){ gateShow(); } else { setView("avail"); setStatus("Sign in (top-right) to load your reps.","info"); } return; }
-  if(isHR()){ setView("avail"); } else { showCoachMenu(); }
+  if(!account && !_pinAdmin){ if(configReady()){ gateShow(); } else { setView("avail"); } return; }
+  routeByRole(); setView("avail"); renderSideNav();
 }
 function selMetric(key){ UI.metric=key; saveUI(); renderSummaryPage(); }
 function metricItems(key){
@@ -1906,7 +1943,30 @@ function openStoreModal(id){
     document.getElementById("sDelete").style.display="none";
   }
   showModal("storeScrim");
+  buildStoreHoursEditor(id?storeById(id):null);
 }
+function buildStoreHoursEditor(st){
+  var box=document.getElementById("sHoursBox"); if(!box) return;
+  var slots=ALL_SLOTS(),h="",i;
+  for(i=0;i<AV_DAYS.length;i++){ var dk=AV_DAYS[i][0],lbl=AV_DAYS[i][1];
+    var hv=(st && st.hours && st.hours[dk])?st.hours[dk]:null; var def=defaultHoursFor(st||{name:""},dk);
+    var closed=!!(hv&&hv.closed), o=(hv&&hv.o)?hv.o:"", c=(hv&&hv.c)?hv.c:"";
+    h+="<div style='display:flex;align-items:center;gap:8px;padding:4px 0'>";
+    h+="<span style='width:34px;font-weight:700;color:var(--purple)'>"+lbl+"</span>";
+    h+="<select id='shO_"+dk+"'><option value=''>(default "+def.o+")</option>"+shOpts(slots,o)+"</select>";
+    h+="<span style='color:var(--muted)'>to</span>";
+    h+="<select id='shC_"+dk+"'><option value=''>(default "+def.c+")</option>"+shOpts(slots,c)+"</select>";
+    h+="<label style='font-size:11.5px;color:var(--muted)'><input type='checkbox' id='shX_"+dk+"' "+(closed?"checked":"")+"> closed</label>";
+    h+="</div>";
+  }
+  box.innerHTML=h;
+}
+function shOpts(slots,sel){ var o="",i; for(i=0;i<slots.length;i++){ o+="<option"+(slots[i]===sel?" selected":"")+">"+slots[i]+"</option>"; } return o; }
+function readStoreHours(){ var out={},any=false,i; for(i=0;i<AV_DAYS.length;i++){ var dk=AV_DAYS[i][0];
+  var xr=document.getElementById("shX_"+dk),o=document.getElementById("shO_"+dk),c=document.getElementById("shC_"+dk);
+  if(!o||!c) continue; if(xr&&xr.checked){ out[dk]={closed:true}; any=true; }
+  else if(o.value&&c.value){ out[dk]={o:o.value,c:c.value}; any=true; } }
+  return any?out:null; }
 function buildManagerSelect(id){
   var sel=document.getElementById("sManager");
   var h="<option value=\"\">\u2014 No manager \u2014</option>";
@@ -1966,11 +2026,12 @@ function saveStore(){
     storeEmail:document.getElementById("sStoreEmail").value.trim(),
     coachEmail:document.getElementById("sCoachEmail").value.trim(),
     managerEmail:document.getElementById("sManagerEmail").value.trim(),
-    manager:readManager()
+    manager:readManager(),
+    hours:readStoreHours()
   };
   if(editStoreId){
     var st=storeById(editStoreId);
-    st.name=obj.name;st.state=obj.state;st.coach=obj.coach;st.me=obj.me;st.tier=obj.tier;st.target=obj.target;st.hoursBudget=obj.hoursBudget;st.laborBudget=obj.laborBudget;st.storeStatus=obj.storeStatus;st.storeEmail=obj.storeEmail;st.coachEmail=obj.coachEmail;st.managerEmail=obj.managerEmail;st.manager=obj.manager;
+    st.name=obj.name;st.state=obj.state;st.coach=obj.coach;st.me=obj.me;st.tier=obj.tier;st.target=obj.target;st.hoursBudget=obj.hoursBudget;st.laborBudget=obj.laborBudget;st.storeStatus=obj.storeStatus;st.storeEmail=obj.storeEmail;st.coachEmail=obj.coachEmail;st.managerEmail=obj.managerEmail;st.manager=obj.manager;st.hours=obj.hours;
   }else{
     obj.id=uid(); obj._storeId=""; DATA.stores.push(obj);
   }
@@ -2520,10 +2581,10 @@ function storeColIntl(lg){ if(!_storeCols) return null;
   var disp=STORE_MAP[lg]; if(!disp) return null;
   if(_storeCols.writable && _storeCols.writable[disp]) return disp;
   var d=_storeCols.byDisplay[disp.toLowerCase()]; return (d && _storeCols.writable && _storeCols.writable[d])?d:null; }
-function storeToFields(st){ var f={},lg,intl,vals={ name:st.name||"", state:st.state||"", coach:st.coach||"", manager:st.manager||"", managerEmail:st.managerEmail||"", coachEmail:st.coachEmail||"", storeEmail:st.storeEmail||"", me:(st.me||null), tier:(st.tier||null), target:(st.target==null?null:st.target), hoursBudget:(Number(st.hoursBudget)||0), laborBudget:(Number(st.laborBudget)||0), storeStatus:(st.storeStatus||"Active"), _storeId:(st._storeId||"") };
+function storeToFields(st){ var f={},lg,intl,vals={ name:st.name||"", state:st.state||"", coach:st.coach||"", manager:st.manager||"", managerEmail:st.managerEmail||"", coachEmail:st.coachEmail||"", storeEmail:st.storeEmail||"", me:(st.me||null), tier:(st.tier||null), target:(st.target==null?null:st.target), hoursBudget:(Number(st.hoursBudget)||0), laborBudget:(Number(st.laborBudget)||0), storeStatus:(st.storeStatus||"Active"), _storeId:(st._storeId||""), hours:(st.hours?JSON.stringify(st.hours):"") };
   for(lg in vals){ if(vals.hasOwnProperty(lg)){ intl=storeColIntl(lg); if(intl) f[intl]=vals[lg]; } } return f; }
 function fieldsToStore(fd){ function g(lg){ var i=storeColIntl(lg); return (i&&typeof fd[i]!=="undefined")?fd[i]:undefined; }
-  var nm=g("name"); return { id:uid(), name:(nm||""), state:g("state")||"", coach:g("coach")||"", manager:g("manager")||"", managerEmail:g("managerEmail")||"", coachEmail:g("coachEmail")||"", storeEmail:g("storeEmail")||"", me:g("me")||"2ME", tier:g("tier")||"", target:(typeof g("target")!=="undefined"&&g("target")!==null?Number(g("target")):null), hoursBudget:Number(g("hoursBudget"))||0, laborBudget:Number(g("laborBudget"))||0, storeStatus:g("storeStatus")||"Active", _storeId:g("_storeId")||"" }; }
+  var nm=g("name"); return { id:uid(), name:(nm||""), state:g("state")||"", coach:g("coach")||"", manager:g("manager")||"", managerEmail:g("managerEmail")||"", coachEmail:g("coachEmail")||"", storeEmail:g("storeEmail")||"", me:g("me")||"2ME", tier:g("tier")||"", target:(typeof g("target")!=="undefined"&&g("target")!==null?Number(g("target")):null), hoursBudget:Number(g("hoursBudget"))||0, laborBudget:Number(g("laborBudget"))||0, storeStatus:g("storeStatus")||"Active", _storeId:g("_storeId")||"", hours:(function(){ var hv=g("hours"); if(!hv) return null; try{ return JSON.parse(hv); }catch(e){ return null; } })() }; }
 function mergeStore(st){ var ex=null,i;
   if(st._storeId){ for(i=0;i<DATA.stores.length;i++){ if(DATA.stores[i]._storeId===st._storeId){ ex=DATA.stores[i]; break; } } }
   if(!ex){ for(i=0;i<DATA.stores.length;i++){ if(DATA.stores[i].name.toLowerCase()===(st.name||"").toLowerCase()){ ex=DATA.stores[i]; break; } } }
@@ -2573,7 +2634,7 @@ function pushStores(t){ if(!CFG.storeList || !_storeCols) return Promise.resolve
 function rebuildStoreSnap(){ _storeSnap={}; for(var i=0;i<DATA.stores.length;i++){ var s=DATA.stores[i]; _storeSnap[s.id]=JSON.stringify(storeToFields(s)); } }
 function colDef(name,type,opts){ opts=opts||{}; var d={name:name}; if(type==="text"){ d.text={allowMultipleLines:!!opts.multi}; } else if(type==="number"){ d.number={}; } else if(type==="boolean"){ d.boolean={}; } else if(type==="date"){ d.dateTime={format:"dateOnly"}; } else if(type==="choice"){ d.choice={choices:opts.choices||[],displayAs:"dropDownMenu"}; } if(opts.hidden) d.hidden=true; return d; }
 function peopleColDefs(){ return [colDef("NTID","text"),colDef("Store","text"),colDef("Status","choice",{choices:["FT","PT"]}),colDef("StartDate","date"),colDef("Birthday","date"),colDef("Phone","text"),colDef("Email","text"),colDef("Role","text"),colDef("Hours","number"),colDef("PayRate","number"),colDef("Perf","choice",{choices:["none","green","yellow","red"]}),colDef("Retention","choice",{choices:["none","green","yellow","red"]}),colDef("Replace","choice",{choices:["none","green","yellow","red"]}),colDef("Attendance","choice",{choices:["none","green","yellow","red"]}),colDef("Stage","text"),colDef("Notes","text",{multi:true}),colDef("Pending","boolean"),colDef("Separated","boolean"),colDef("SepType","choice",{choices:["Terminated","Quit","Did not start","Other"]}),colDef("SepDate","date"),colDef("SepReason","text",{multi:true}),colDef("HubId","text"),colDef("Stores","text",{multi:true}),colDef("Availability","text",{multi:true})]; }
-function storeAddColDefs(){ return [colDef("Coverage","choice",{choices:["1ME","2ME"]}),colDef("Tier","choice",{choices:["1","2","3"]}),colDef("Target","number"),colDef("HoursBudget","number"),colDef("LaborBudget","number"),colDef("StoreStatus","choice",{choices:["Active","Closed"]}),colDef("StoreId","text",{hidden:true})]; }
+function storeAddColDefs(){ return [colDef("Coverage","choice",{choices:["1ME","2ME"]}),colDef("Tier","choice",{choices:["1","2","3"]}),colDef("Target","number"),colDef("HoursBudget","number"),colDef("LaborBudget","number"),colDef("StoreStatus","choice",{choices:["Active","Closed"]}),colDef("StoreId","text",{hidden:true}),colDef("StoreHours","text",{multi:true})]; }
 function colNames(defs){ var a=[],i; for(i=0;i<defs.length;i++) a.push(defs[i].name); return a.join(", "); }
 function provisionLists(){
   if(!account){ openSettings(); setStatus("Sign in first.","bad"); return; }
@@ -2725,7 +2786,7 @@ function boot(){
   fillSelects(); renderLegend(); render();
   initMsal(); updateSyncUI();
   setView(UI.view);
-  if(configReady()){ routeByRole(); } else { gateHideAll(); }
+  if(configReady()){ routeByRole(); } else { document.body.classList.add("has-side"); document.body.classList.add("role-admin"); document.getElementById("sideNav").style.display="flex"; renderSideNav(); }
   if(CFG && CFG.structured && CFG.auto && account && configReady()){ setTimeout(pullRosterSilent,300); }
 }
 boot();
