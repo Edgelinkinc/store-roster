@@ -344,6 +344,31 @@ table.sheet .flagpill{margin:0 auto;}
 </style>
 </head>
 <body>
+<div id="loginGate" style="position:fixed;inset:0;z-index:9000;background:linear-gradient(135deg,#4A1B5C,#E20074);display:none;align-items:center;justify-content:center;">
+  <div id="gatePinCorner" onclick="gatePinReveal()" title="Admin" style="position:absolute;bottom:14px;right:16px;width:26px;height:26px;border-radius:50%;opacity:.18;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px">&#9679;</div>
+  <div style="background:#fff;border-radius:20px;max-width:380px;width:90%;padding:34px 30px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div class="bebas" style="font-size:40px;color:var(--magenta);line-height:1">EDGELINK</div>
+    <div style="font-size:13px;color:var(--purple);font-weight:700;letter-spacing:.5px;margin-top:2px">STAFFING &amp; AVAILABILITY</div>
+    <p style="color:var(--muted);font-size:13.5px;line-height:1.6;margin:18px 0 22px">Sign in with your Microsoft work account to set your team's availability.</p>
+    <button class="btn btn-primary" style="width:100%;padding:12px;font-size:15px" onclick="gateSignIn()">Sign in with Microsoft</button>
+    <div id="gatePinRow" style="display:none;gap:8px;margin-top:16px"><input type="password" inputmode="numeric" id="gatePin" placeholder="Admin PIN" onkeydown="if(event.key==='Enter')gatePinEnter()" style="flex:1;height:40px;border:1px solid #ddd;border-radius:10px;padding:0 12px;font-size:14px;text-align:center;letter-spacing:3px;color:var(--purple)"><button class="btn btn-soft" style="padding:0 16px;height:40px" onclick="gatePinEnter()">Enter</button></div>
+    <div id="gateMsg" style="font-size:12px;color:var(--red);margin-top:12px;min-height:16px"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:14px">Trouble signing in? Contact HR at hr@edgelinkinc.com</div>
+  </div>
+</div>
+<div id="coachMenu" style="position:fixed;inset:0;z-index:8900;background:#faf6fb;display:none;overflow:auto;">
+  <div style="max-width:760px;margin:0 auto;padding:30px 20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+      <div class="bebas" style="font-size:34px;color:var(--purple);line-height:1">EDGELINK</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="syncdot" id="syncDot2"><i></i><span id="syncTxt2">&nbsp;</span></span>
+        <button class="btn btn-soft" onclick="gateSignOut()">Sign out</button>
+      </div>
+    </div>
+    <div id="coachMenuWho" style="color:var(--muted);font-size:13px;margin-bottom:22px"></div>
+    <div id="coachMenuTiles" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px"></div>
+  </div>
+</div>
 <header class="app">
   <div class="headbar">
     <div class="brand">
@@ -356,12 +381,12 @@ table.sheet .flagpill{margin:0 auto;}
     <div class="headspace"></div>
     <div class="syncwrap no-print">
       <span class="syncdot" id="syncDot"><i></i><span id="syncTxt">Local only</span></span>
-      <button class="btn btn-ghost" onclick="showModal('coachScrim')">Coach login</button>
+      <button class="btn btn-ghost" onclick="coachEntry()">Coach login</button>
       <button class="btn btn-ghost" onclick="openSettings()">&#9881; Settings</button>
     </div>
   </div>
   <div class="toolbar no-print">
-    <div class="viewswitch"><button id="viewOrg" class="vbtn active" onclick="setView('org')">Org chart</button><button id="viewSum" class="vbtn" onclick="setView('summary')">Summary</button><button id="viewSheet" class="vbtn" onclick="setView('sheet')">Sheet</button><button id="viewTerm" class="vbtn" onclick="setView('term')">Terminated</button></div>
+    <div class="viewswitch"><button id="viewOrg" class="vbtn active" onclick="setView('org')">Org chart</button><button id="viewSum" class="vbtn" onclick="setView('summary')">Summary</button><button id="viewSheet" class="vbtn" onclick="setView('sheet')">Sheet</button><button id="viewAvail" class="vbtn" onclick="setView('avail')">Availability</button><button id="viewTerm" class="vbtn" onclick="setView('term')">Terminated</button></div>
     <button class="btn btn-primary" onclick="openStoreModal(null)">+ Store</button>
     <button class="btn btn-primary" onclick="openEmpModal(null,null)">+ Employee</button>
     <button class="btn btn-soft" onclick="expandAll(true)">Expand all</button>
@@ -396,6 +421,8 @@ table.sheet .flagpill{margin:0 auto;}
 <div class="sheetpage" id="sheetPage" style="display:none"></div>
 
 <div class="sheetpage" id="termPage" style="display:none"></div>
+
+<div class="sheetpage" id="availPage" style="display:none"></div>
 
 <!-- Store modal -->
 <div class="scrim" id="storeScrim">
@@ -596,6 +623,8 @@ table.sheet .flagpill{margin:0 auto;}
           </div>
         </div>
       </details>
+      <div class="mrow"><label>Admin / HR emails <span style="color:var(--muted)">(full availability access, all regions; comma-separated)</span></label><input type="text" id="cfgAdminEmails" placeholder="hr@edgelinkinc.com, you@edgelinkinc.com"></div>
+      <div class="mrow"><label>Admin PIN <span style="color:var(--muted)">(lets HR into the full dashboard without Microsoft sign-in)</span></label><input type="text" id="cfgAdminPin" inputmode="numeric" placeholder="e.g. 4826"></div>
       <details>
         <summary style="cursor:pointer;font-weight:700;color:var(--purple);font-size:13px;">One-time setup steps</summary>
         <ol class="steps" style="margin-top:8px;">
@@ -629,7 +658,7 @@ var LS_UI="edgelinkRosterUI_v1";
 var DATA=null;
 var CFG=null;
 var UI={collapsed:{}};
-var msalApp=null, account=null, siteId="", listId="", spItemId="";
+var msalApp=null, account=null, siteId="", listId="", spItemId="", _pinAdmin=false;
 var _spById={}, _snap={}, _pushTimer=null;
 var _peopleCols=null, _storeCols=null, _storeListId="", _storeById={}, _storeSnap={};
 var _hubListId="", hubColsCache=null, _dirtyStore={};
@@ -905,26 +934,141 @@ function stat(n,l,cls){ return "<div class='stat "+cls+"'><div class='num'>"+n+"
 /* ---------- View switch ---------- */
 function setView(v){
   UI.view=v; saveUI();
-  var org=(v==="org"), sum=(v==="summary"), sheet=(v==="sheet"), term=(v==="term");
+  var org=(v==="org"), sum=(v==="summary"), sheet=(v==="sheet"), term=(v==="term"), avail=(v==="avail");
   document.getElementById("main").style.display=org?"":"none";
   document.getElementById("summaryPage").style.display=sum?"":"none";
   document.getElementById("sheetPage").style.display=sheet?"":"none";
   document.getElementById("termPage").style.display=term?"":"none";
+  document.getElementById("availPage").style.display=avail?"":"none";
   document.getElementById("summary").style.display=org?"":"none";
   document.getElementById("flagLegend").style.display=org?"":"none";
-  var flt=document.querySelector(".filters"); if(flt) flt.style.display=(sum||term)?"none":"";
+  var flt=document.querySelector(".filters"); if(flt) flt.style.display=(sum||term||avail)?"none":"";
   document.getElementById("viewOrg").className="vbtn"+(org?" active":"");
   document.getElementById("viewSum").className="vbtn"+(sum?" active":"");
   document.getElementById("viewSheet").className="vbtn"+(sheet?" active":"");
   document.getElementById("viewTerm").className="vbtn"+(term?" active":"");
+  var va=document.getElementById("viewAvail"); if(va) va.className="vbtn"+(avail?" active":"");
   if(org) render();
   if(sum) renderSummaryPage();
   if(sheet) renderSheet();
   if(term) renderTermPage();
+  if(avail) renderAvailPage();
 }
 
 /* ---------- CEO summary page ---------- */
 function coachOf(sid){ var st=storeById(sid); return st?st.coach:""; }
+/* ---------- Availability view (region-scoped) ---------- */
+function regionOf(state){ state=(state||"").toUpperCase(); if(state==="TN") return "TN"; if(state==="AR") return "AR"; if(state==="RI"||state==="MA"||state==="CT") return "NE"; return state||"?"; }
+function regionLabel(g){ return g==="NE"?"RI / MA / CT":(g||"?"); }
+function empHomeStoreObj(emp){ return storeById(empPrimary(emp)); }
+function empRegion(emp){ var st=empHomeStoreObj(emp); return st?regionOf(st.state):"?"; }
+function empOwnerName(emp){ var st=empHomeStoreObj(emp); if(!st) return "TBD"; if(st.coach && st.coach!=="TBD") return st.coach; return st.manager||"TBD"; }
+function empOwnerEmail(emp){ var st=empHomeStoreObj(emp); if(!st) return ""; if(st.coach && st.coach!=="TBD") return (st.coachEmail||"").toLowerCase(); return (st.managerEmail||"").toLowerCase(); }
+function myEmail(){ return account && account.username ? (""+account.username).toLowerCase() : ""; }
+function isHR(){ if(_pinAdmin) return true; var e=myEmail(); if(!e) return true; var list=((CFG&&CFG.adminEmails)||"").toLowerCase().split(/[,;\s]+/); for(var i=0;i<list.length;i++){ if(list[i] && list[i]===e) return true; } return false; }
+function myOwnedStores(){ var e=myEmail(),out=[],i; if(!e) return out; for(i=0;i<DATA.stores.length;i++){ var st=DATA.stores[i]; if((st.coachEmail||"").toLowerCase()===e || (st.managerEmail||"").toLowerCase()===e) out.push(st); } return out; }
+function myRegions(){ var s=myOwnedStores(),seen={},out=[],i; for(i=0;i<s.length;i++){ var g=regionOf(s[i].state); if(!seen[g]){ seen[g]=1; out.push(g); } } return out; }
+function canEditEmp(emp){ if(isHR()) return true; var oe=empOwnerEmail(emp); return oe && oe===myEmail(); }
+
+function renderAvailPage(){
+  var box=document.getElementById("availPage"),hr=isHR(),regions=myRegions(),i,emp;
+  var h="<div style='padding:4px 2px'>";
+  h+="<div style='display:flex;align-items:center;gap:10px;margin-bottom:8px'><h2 class='bebas' style='margin:0'>Weekly Availability</h2>";
+  if(hr){ h+="<span class='pill'>HR view \u00b7 all regions</span>"; }
+  else if(regions.length){ h+="<span class='pill'>"+X(myRegions().map(regionLabel).join(" + "))+"</span>"; }
+  else { h+="<span class='pill' style='background:#ffe9e9;color:#b00'>No stores matched your sign-in</span>"; }
+  h+="</div>";
+  if(!account){ h+="<p style='color:var(--muted)'>Sign in (top-right) to load your reps.</p></div>"; box.innerHTML=h; return; }
+  if(!hr && !regions.length){ h+="<p style='color:var(--muted)'>Your email isn't set as a Coach Email or Manager Email on any store, so there's nothing to show. Ask HR to add it.</p></div>"; box.innerHTML=h; return; }
+
+  // gather visible reps (active, in region), group by owner
+  var groups={},order=[];
+  for(i=0;i<DATA.employees.length;i++){ emp=DATA.employees[i]; if(!isActive(emp)) continue; var st=empHomeStoreObj(emp); if(!st) continue;
+    var g=regionOf(st.state); if(!hr && regions.indexOf(g)<0) continue;
+    var owner=empOwnerName(emp); if(!groups[owner]){ groups[owner]=[]; order.push(owner); }
+    groups[owner].push(emp);
+  }
+  order.sort();
+  h+="<p style='color:var(--muted);font-size:12px;margin:2px 0 12px'>You can edit your own reps. Others in your region are shown for coverage (read-only). Per day: type <b>Open</b>, <b>Off</b>, or ranges like <b>9:00 AM-1:00 PM, 4:00 PM-8:00 PM</b>.</p>";
+  var dayH=""; for(i=0;i<AV_DAYS.length;i++) dayH+="<th>"+AV_DAYS[i][1]+"</th>";
+  for(var gi=0;gi<order.length;gi++){ var own=order[gi],list=groups[own];
+    h+="<h3 style='margin:16px 0 6px;color:var(--purple)'>"+X(own)+" <span style='font-weight:400;color:var(--muted);font-size:12px'>("+list.length+")</span></h3>";
+    h+="<div class='sheet-wrap' style='margin-bottom:10px'><table class='sheet'><thead><tr><th style='min-width:150px'>Rep</th><th>Home store</th>"+dayH+"</tr></thead><tbody>";
+    for(i=0;i<list.length;i++){ emp=list[i]; var eid=jsq(emp.id),ed=canEditEmp(emp),st=empHomeStoreObj(emp);
+      h+="<tr><td><b>"+X(emp.name)+"</b>"+(ed?"":" <span class='multichip' title='Read-only'>view</span>")+"</td><td>"+X(st?st.name:"")+"</td>";
+      for(var d=0;d<AV_DAYS.length;d++){ var k=AV_DAYS[d][0],txt=avFormatDay((emp.availability||{})[k]);
+        if(ed){ h+="<td><input type='text' class='cellin avin' style='min-width:96px' value='"+X(txt)+"' onchange=\"savRepDay('"+eid+"','"+k+"',this)\"></td>"; }
+        else { h+="<td style='color:var(--muted)'>"+X(txt)+"</td>"; }
+      }
+      h+="</tr>";
+    }
+    h+="</tbody></table></div>";
+  }
+  if(!order.length) h+="<p style='color:var(--muted)'>No active reps in your region yet.</p>";
+  h+="</div>";
+  box.innerHTML=h;
+}
+function savRepDay(eid,k,el){
+  var e=empById(eid); if(!e) return; if(!canEditEmp(e)){ return; }
+  if(!e.availability) e.availability={};
+  var d=avParseDay(el.value); e.availability[k]=d;
+  el.value=avFormatDay(d);
+  saveData();
+}
+/* ---------- Login gate + role routing ---------- */
+function gateShow(){ document.getElementById("loginGate").style.display="flex"; document.getElementById("coachMenu").style.display="none"; }
+function gateHideAll(){ document.getElementById("loginGate").style.display="none"; document.getElementById("coachMenu").style.display="none"; }
+function gateSignIn(){ if(!configReady()){ document.getElementById("gateMsg").textContent="Sign-in isn't configured yet. Contact HR."; return; } document.getElementById("gateMsg").textContent="Opening Microsoft sign-in\u2026"; spSignIn(); }
+function gatePinReveal(){ var r=document.getElementById("gatePinRow"); if(r){ r.style.display="flex"; var i=document.getElementById("gatePin"); if(i) i.focus(); } }
+function gatePinEnter(){
+  var el=document.getElementById("gatePin"),pin=(CFG&&CFG.adminPin)?(""+CFG.adminPin):"";
+  var v=(el?el.value:"").replace(/\s/g,"");
+  if(!pin){ document.getElementById("gateMsg").textContent="No admin PIN set. Set one in Settings."; return; }
+  if(v===pin){ _pinAdmin=true; if(el) el.value=""; document.getElementById("gateMsg").textContent=""; gateHideAll(); setView(UI.view||"org"); }
+  else { document.getElementById("gateMsg").textContent="Incorrect PIN."; }
+}
+function gateSignOut(){
+  try{ if(msalApp && account){ msalApp.logoutPopup({account:account}).then(function(){},function(){}); } }catch(e){}
+  account=null; _pinAdmin=false; try{ var i,ks=[]; for(i=0;i<localStorage.length;i++){ var kk=localStorage.key(i); if(kk && kk.indexOf("msal.")===0) ks.push(kk); } for(i=0;i<ks.length;i++) localStorage.removeItem(ks[i]); }catch(e2){}
+  routeByRole();
+}
+function routeByRole(){
+  // PIN admin -> full dashboard. Not signed in -> gate. HR -> dashboard. Coach -> menu.
+  if(_pinAdmin){ gateHideAll(); return; }
+  if(!account){ gateShow(); return; }
+  if(isHR()){ gateHideAll(); return; }
+  if(myRegions().length){ showCoachMenu(); return; }
+  // signed in but not recognized as HR or coach/manager
+  gateHideAll(); setView("avail");
+}
+function showCoachMenu(){
+  document.getElementById("loginGate").style.display="none";
+  var m=document.getElementById("coachMenu"); m.style.display="block";
+  var who=(account?account.username:"");
+  document.getElementById("coachMenuWho").innerHTML="Signed in as <b>"+X(who)+"</b> \u00b7 Region: "+X(myRegions().map(regionLabel).join(" + "));
+  var s2=document.getElementById("syncTxt2"); if(s2){ s2.textContent=account?"Synced":""; }
+  var tiles=[
+    {t:"Set Availability",d:"Enter Open / Off / hours for your reps, by day.",go:"openCoachAvail()"},
+    {t:"Scheduling",d:"Coming soon \u2014 build schedules from availability.",dis:true}
+  ];
+  var h="",i; for(i=0;i<tiles.length;i++){ var x=tiles[i];
+    h+="<div style='background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:var(--shadow);"+(x.dis?"opacity:.55":"cursor:pointer")+"' "+(x.dis?"":("onclick=\""+x.go+"\""))+">";
+    h+="<div class='bebas' style='font-size:24px;color:"+(x.dis?"var(--muted)":"var(--magenta)")+"'>"+X(x.t)+"</div>";
+    h+="<div style='font-size:13px;color:var(--muted);margin-top:6px;line-height:1.5'>"+X(x.d)+"</div>";
+    if(x.dis) h+="<span class='pill' style='margin-top:10px;display:inline-block'>Soon</span>";
+    h+="</div>";
+  }
+  document.getElementById("coachMenuTiles").innerHTML=h;
+}
+function openCoachAvail(){ document.getElementById("coachMenu").style.display="none"; setView("avail");
+  // add a back link into the availability page header
+  var box=document.getElementById("availPage");
+  setTimeout(function(){ if(!document.getElementById("availBack")){ var b=document.createElement("button"); b.id="availBack"; b.className="btn btn-soft"; b.style.margin="0 0 10px"; b.textContent="\u2190 Menu"; b.onclick=function(){ showCoachMenu(); }; if(box && box.firstChild) box.insertBefore(b,box.firstChild); } },30);
+}
+function coachEntry(){
+  if(!account){ if(configReady()){ gateShow(); } else { setView("avail"); setStatus("Sign in (top-right) to load your reps.","info"); } return; }
+  if(isHR()){ setView("avail"); } else { showCoachMenu(); }
+}
 function selMetric(key){ UI.metric=key; saveUI(); renderSummaryPage(); }
 function metricItems(key){
   var items=[],i,emp,st,fd;
@@ -1750,20 +1894,44 @@ function deleteStore(){
 var AV_DAYS=[["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]];
 function buildAvailEditor(av){
   av=av||{}; var box=document.getElementById("eAvailBox"),h="",i;
-  for(i=0;i<AV_DAYS.length;i++){ var k=AV_DAYS[i][0],d=av[k]||{},off=!!d.off;
-    h+="<div class='availrow"+(off?" isoff":"")+"' id='avr_"+k+"'>";
-    h+="<span class='ad'>"+AV_DAYS[i][1]+"</span>";
-    h+="<input type='time' id='avf_"+k+"' value='"+X(d.from||"")+"'> <span style='color:var(--muted)'>to</span> <input type='time' id='avt_"+k+"' value='"+X(d.to||"")+"'>";
-    h+="<label class='offlbl'><input type='checkbox' id='avo_"+k+"' "+(off?"checked":"")+" onchange=\"avToggleOff('"+k+"')\"> off</label>";
+  h+="<div style='font-size:11px;color:var(--muted);margin-bottom:6px'>Per day type <b>Open</b>, <b>Off</b>, or ranges like <b>9:00 AM-1:00 PM, 4:00 PM-8:00 PM</b>.</div>";
+  for(i=0;i<AV_DAYS.length;i++){ var k=AV_DAYS[i][0],txt=avFormatDay(av[k]);
+    h+="<div class='availrow'><span class='ad'>"+AV_DAYS[i][1]+"</span>";
+    h+="<input type='text' id='ave_"+k+"' value='"+X(txt)+"' placeholder='Off' style='flex:1;min-width:0'>";
+    h+="<button type='button' class='btn btn-soft' style='padding:2px 8px' onclick=\"document.getElementById('ave_"+k+"').value='Open'\">Open</button>";
+    h+="<button type='button' class='btn btn-soft' style='padding:2px 8px' onclick=\"document.getElementById('ave_"+k+"').value='Off'\">Off</button>";
     h+="</div>";
   }
   box.innerHTML=h;
 }
-function avToggleOff(k){ var r=document.getElementById("avr_"+k),c=document.getElementById("avo_"+k); if(c.checked) r.className="availrow isoff"; else r.className="availrow"; }
-function readAvail(){ var out={},i; for(i=0;i<AV_DAYS.length;i++){ var k=AV_DAYS[i][0],off=document.getElementById("avo_"+k).checked,f=document.getElementById("avf_"+k).value,t=document.getElementById("avt_"+k).value;
-  if(off){ out[k]={off:true}; } else if(f||t){ out[k]={off:false,from:f,to:t}; } }
-  return out; }
-function availSummary(av){ if(!av) return ""; var parts=[],i; for(i=0;i<AV_DAYS.length;i++){ var k=AV_DAYS[i][0],d=av[k]; if(!d) continue; if(d.off) parts.push(AV_DAYS[i][1]+" off"); else if(d.from||d.to) parts.push(AV_DAYS[i][1]+" "+(d.from||"?")+"-"+(d.to||"?")); } return parts.join(", "); }
+function readAvail(){ var out={},i; for(i=0;i<AV_DAYS.length;i++){ var k=AV_DAYS[i][0],el=document.getElementById("ave_"+k); if(!el) continue; var d=avParseDay(el.value); if(!(d.off)) out[k]=d; else out[k]={off:true}; } return out; }
+function avNormDay(d){
+  if(!d) return {off:true};
+  if(d.open) return {open:true};
+  if(d.off) return {off:true};
+  if(d.ranges && d.ranges.length) return {ranges:d.ranges};
+  if(d.from||d.to) return {ranges:[{from:d.from||"",to:d.to||""}]};  // legacy single range
+  return {off:true};
+}
+function avFormatDay(d){
+  d=avNormDay(d);
+  if(d.open) return "Open";
+  if(d.off) return "Off";
+  var out=[],i; for(i=0;i<d.ranges.length;i++){ var r=d.ranges[i]; if(r.from||r.to) out.push((r.from||"?")+"-"+(r.to||"?")); }
+  return out.length?out.join(", "):"Off";
+}
+function avParseDay(txt){
+  txt=(""+(txt||"")).replace(/^\s+|\s+$/g,"");
+  if(!txt) return {off:true};
+  var low=txt.toLowerCase();
+  if(low==="open"||low==="all"||low==="all day"||low==="any") return {open:true};
+  if(low==="off"||low==="x"||low==="none"||low==="-") return {off:true};
+  var parts=txt.split(","),ranges=[],i;
+  for(i=0;i<parts.length;i++){ var p=parts[i].replace(/^\s+|\s+$/g,""); if(!p) continue;
+    var m=p.split(/\s*(?:-|to|–|—)\s*/); ranges.push({from:(m[0]||"").replace(/^\s+|\s+$/g,""),to:(m[1]||"").replace(/^\s+|\s+$/g,"")}); }
+  return ranges.length?{ranges:ranges}:{off:true};
+}
+function availSummary(av){ if(!av) return ""; var parts=[],i; for(i=0;i<AV_DAYS.length;i++){ var k=AV_DAYS[i][0],d=av[k]; if(!d) continue; d=avNormDay(d); if(d.off) continue; parts.push(AV_DAYS[i][1]+" "+avFormatDay(d)); } return parts.join(", "); }
 var editEmpId=null;
 var hoursManuallyEdited=false, curEmpAuto=true;
 function openEmpModal(id,presetStore){
@@ -2001,6 +2169,8 @@ function openSettings(){
   if(CFG.hubName){ var mr=document.getElementById("hubMapRows"); mr.style.display="";
     setSavedOpt("cfgHubName",CFG.hubName); setSavedOpt("cfgHubStart",CFG.hubStart); setSavedOpt("cfgHubStore",CFG.hubStore); setSavedOpt("cfgHubStarted",CFG.hubStarted);
     document.getElementById("cfgHubStartedVal").value=CFG.hubStartedVal||"";
+  if(document.getElementById("cfgAdminEmails")) document.getElementById("cfgAdminEmails").value=CFG.adminEmails||"";
+  if(document.getElementById("cfgAdminPin")) document.getElementById("cfgAdminPin").value=CFG.adminPin||"";
   }
   document.getElementById("cfgStructured").checked=!!CFG.structured;
   document.getElementById("cfgAuto").checked=!!CFG.auto;
@@ -2016,6 +2186,8 @@ function saveSettings(){
   CFG.hubList=document.getElementById("cfgHubList").value.trim();
   CFG.hubName=selVal("cfgHubName"); CFG.hubStart=selVal("cfgHubStart"); CFG.hubStore=selVal("cfgHubStore"); CFG.hubStarted=selVal("cfgHubStarted");
   CFG.hubStartedVal=(document.getElementById("cfgHubStartedVal")?document.getElementById("cfgHubStartedVal").value.trim():"");
+  CFG.adminEmails=(document.getElementById("cfgAdminEmails")?document.getElementById("cfgAdminEmails").value.trim():"");
+  CFG.adminPin=(document.getElementById("cfgAdminPin")?document.getElementById("cfgAdminPin").value.replace(/\s/g,""):"");
   CFG.structured=document.getElementById("cfgStructured").checked;
   _peopleCols=null; _storeCols=null; listId="";
   CFG.auto=document.getElementById("cfgAuto").checked;
@@ -2057,7 +2229,11 @@ function spSignIn(){
   if(!msalApp){ setStatus("MSAL library not loaded (offline?).","bad"); return; }
   msalApp.loginPopup({scopes:["Sites.ReadWrite.All","Sites.Manage.All"]}).then(function(resp){
     account=resp.account; updateSyncUI(); setStatus("Signed in as "+account.username+".","ok");
-  }).catch(function(e){ setStatus("Sign-in failed: "+e.message,"bad"); });
+    var gm=document.getElementById("gateMsg"); if(gm) gm.textContent="";
+    if(CFG && CFG.structured && CFG.auto && configReady()){ pullRosterSilent(); }
+    routeByRole();
+    if(UI.view==="avail") renderAvailPage();
+  }).catch(function(e){ setStatus("Sign-in failed: "+e.message,"bad"); var gm=document.getElementById("gateMsg"); if(gm) gm.textContent="Sign-in failed: "+e.message; });
 }
 function getToken(){
   return msalApp.acquireTokenSilent({scopes:["Sites.ReadWrite.All","Sites.Manage.All"],account:account})
@@ -2168,6 +2344,8 @@ function pullRosterSilent(){
     }).then(function(items){
       if(items.length){ var emps=[],i; _spById={}; for(i=0;i<items.length;i++){ emps.push(fieldsToEmp(items[i].fields,items[i].id)); } DATA.employees=emps; lsSet(LS_DATA,DATA); }
       rebuildSnap(); rebuildStoreSnap(); fillSelects(); renderLegend(); render(); setSyncOK();
+      if(UI.view==="avail" && document.getElementById("availPage").style.display!=="none") renderAvailPage();
+      if(document.getElementById("coachMenu").style.display!=="none") showCoachMenu();
       if(CFG.hubList && CFG.hubName){ setTimeout(function(){ pullNewHires(true); },400); }
     });
   }).catch(function(e){ setSyncErr(); });
@@ -2422,7 +2600,7 @@ function boot(){
     if(typeof _s._storeId==="undefined"){ _s._storeId=""; migrated=true; }
   }
   if(migrated) lsSet(LS_DATA,DATA);
-  CFG=lsGet(LS_CFG,{clientId:"",tenantId:"",siteUrl:"",listName:"",storeList:"",structured:false,auto:false});
+  CFG=lsGet(LS_CFG,{clientId:"",tenantId:"",siteUrl:"",listName:"",storeList:"",structured:false,auto:false,adminEmails:"",adminPin:""});
   if(typeof CFG.structured==="undefined") CFG.structured=false;
   if(typeof CFG.storeList==="undefined") CFG.storeList="";
   if(typeof CFG.hubList==="undefined") CFG.hubList="";
@@ -2438,6 +2616,7 @@ function boot(){
   fillSelects(); renderLegend(); render();
   initMsal(); updateSyncUI();
   setView(UI.view);
+  if(configReady()){ routeByRole(); } else { gateHideAll(); }
   if(CFG && CFG.structured && CFG.auto && account && configReady()){ setTimeout(pullRosterSilent,300); }
 }
 boot();
